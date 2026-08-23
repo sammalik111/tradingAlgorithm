@@ -44,7 +44,7 @@ resource "aws_security_group_rule" "codebuild_to_aurora" {
   protocol                 = "tcp"
   security_group_id        = var.aurora_security_group_id
   source_security_group_id = aws_security_group.codebuild.id
-  description               = "Allow the weekly deploy job to run Alembic migrations"
+  description              = "Allow the weekly deploy job to run Alembic migrations"
 }
 
 # --- CodeBuild ---------------------------------------------------------

@@ -12,7 +12,7 @@ resource "aws_sqs_queue" "trade_ingest" {
 
   redrive_policy = jsonencode({
     deadLetterTargetArn = aws_sqs_queue.trade_ingest_dlq.arn
-    maxReceiveCount      = var.max_receive_count
+    maxReceiveCount     = var.max_receive_count
   })
 
   tags = { Name = "${var.project}-${var.environment}-trade-ingest" }
