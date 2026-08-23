@@ -12,11 +12,35 @@
 
 locals {
   bootstrap_source_image  = "public.ecr.aws/lambda/python:3.11"
+  ecr_registry_host       = split("/", module.ecr.repository_urls["backend"])[0]
   backend_bootstrap_image = "${module.ecr.repository_urls["backend"]}:bootstrap"
   workers_bootstrap_image = "${module.ecr.repository_urls["workers"]}:bootstrap"
 }
 
+# Login + pull happen once, here. backend/workers push in parallel below —
+# `docker login` writes to the local machine's credential store (macOS
+# Keychain, etc.), and two concurrent logins to the same registry race and
+# can corrupt that write, so every registry auth is centralized in this one
+# resource instead of being duplicated per bootstrap push.
+resource "null_resource" "ecr_login_and_pull" {
+  triggers = {
+    registry_host = local.ecr_registry_host
+  }
+
+  provisioner "local-exec" {
+    interpreter = ["bash", "-c"]
+    command     = <<-EOT
+      set -euo pipefail
+      aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin public.ecr.aws
+      aws ecr get-login-password --region ${var.aws_region} | docker login --username AWS --password-stdin ${local.ecr_registry_host}
+      docker pull ${local.bootstrap_source_image}
+    EOT
+  }
+}
+
 resource "null_resource" "bootstrap_backend_image" {
+  depends_on = [null_resource.ecr_login_and_pull]
+
   triggers = {
     repo_url = module.ecr.repository_urls["backend"]
   }
@@ -25,10 +49,6 @@ resource "null_resource" "bootstrap_backend_image" {
     interpreter = ["bash", "-c"]
     command     = <<-EOT
       set -euo pipefail
-      registry_host="$(echo "${module.ecr.repository_urls["backend"]}" | cut -d/ -f1)"
-      aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin public.ecr.aws
-      aws ecr get-login-password --region ${var.aws_region} | docker login --username AWS --password-stdin "$registry_host"
-      docker pull ${local.bootstrap_source_image}
       docker tag ${local.bootstrap_source_image} ${local.backend_bootstrap_image}
       docker push ${local.backend_bootstrap_image}
     EOT
@@ -36,6 +56,8 @@ resource "null_resource" "bootstrap_backend_image" {
 }
 
 resource "null_resource" "bootstrap_workers_image" {
+  depends_on = [null_resource.ecr_login_and_pull]
+
   triggers = {
     repo_url = module.ecr.repository_urls["workers"]
   }
@@ -44,10 +66,6 @@ resource "null_resource" "bootstrap_workers_image" {
     interpreter = ["bash", "-c"]
     command     = <<-EOT
       set -euo pipefail
-      registry_host="$(echo "${module.ecr.repository_urls["workers"]}" | cut -d/ -f1)"
-      aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin public.ecr.aws
-      aws ecr get-login-password --region ${var.aws_region} | docker login --username AWS --password-stdin "$registry_host"
-      docker pull ${local.bootstrap_source_image}
       docker tag ${local.bootstrap_source_image} ${local.workers_bootstrap_image}
       docker push ${local.workers_bootstrap_image}
     EOT
