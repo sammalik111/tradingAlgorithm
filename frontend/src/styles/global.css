@@ -1,0 +1,121 @@
+:root {
+  color-scheme: light dark;
+  --color-bg: #0f1115;
+  --color-surface: #171a21;
+  --color-border: #2a2e37;
+  --color-text: #e6e8eb;
+  --color-muted: #9aa1ac;
+  --color-buy: #3ddc84;
+  --color-sell: #ff5c5c;
+  --color-hold: #9aa1ac;
+  font-family:
+    "Inter",
+    system-ui,
+    -apple-system,
+    sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+
+.app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.app-title {
+  font-weight: 600;
+}
+
+.app-header nav a {
+  margin-left: 1.5rem;
+  color: var(--color-muted);
+  text-decoration: none;
+}
+
+.app-header nav a.active {
+  color: var(--color-text);
+}
+
+main {
+  padding: 1.5rem;
+  max-width: 960px;
+  margin: 0 auto;
+}
+
+.recommendation-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 1rem;
+}
+
+.recommendation-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 1rem;
+}
+
+.recommendation-card header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.badge {
+  font-size: 0.75rem;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  border: 1px solid var(--color-border);
+}
+
+.direction-buy .signal-score {
+  color: var(--color-buy);
+}
+
+.direction-sell .signal-score {
+  color: var(--color-sell);
+}
+
+.direction-hold .signal-score {
+  color: var(--color-hold);
+}
+
+.rationale {
+  color: var(--color-muted);
+  font-size: 0.9rem;
+}
+
+.trade-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.trade-table th,
+.trade-table td {
+  text-align: left;
+  padding: 0.5rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.transaction-buy {
+  color: var(--color-buy);
+}
+
+.transaction-sell {
+  color: var(--color-sell);
+}
+
+.error {
+  color: var(--color-sell);
+}
