@@ -41,6 +41,7 @@ variable "backup_retention_days" {
 }
 
 variable "deletion_protection" {
-  type    = bool
-  default = true
+  description = "Off by default: this is a proof-of-concept environment that gets torn down/recreated while iterating. Flip to true before it holds real data."
+  type        = bool
+  default     = false
 }
