@@ -157,11 +157,6 @@ resource "aws_iam_role_policy" "codebuild" {
   policy = data.aws_iam_policy_document.codebuild_permissions.json
 }
 
-resource "aws_cloudwatch_log_group" "codebuild" {
-  name              = "/aws/codebuild/${var.project}-${var.environment}-deploy"
-  retention_in_days = 14
-}
-
 resource "aws_codebuild_project" "deploy" {
   name         = "${var.project}-${var.environment}-deploy"
   service_role = aws_iam_role.codebuild.arn
@@ -170,12 +165,13 @@ resource "aws_codebuild_project" "deploy" {
     type = "CODEPIPELINE"
   }
 
-  # Explicit rather than relying on the API's implicit default, so there's
-  # a guaranteed, known place to find build output.
+  # CodeBuild creates its own /aws/codebuild/<project-name> log group as a
+  # side effect (confirmed: it already existed before this block was ever
+  # added), so this only needs to turn logging on — not also try to own the
+  # log group resource, which collides with the one CodeBuild itself made.
   logs_config {
     cloudwatch_logs {
-      status     = "ENABLED"
-      group_name = aws_cloudwatch_log_group.codebuild.name
+      status = "ENABLED"
     }
   }
 
