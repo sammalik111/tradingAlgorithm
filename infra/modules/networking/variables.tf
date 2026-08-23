@@ -10,3 +10,9 @@ variable "vpc_cidr" {
 variable "availability_zones" {
   type = list(string)
 }
+
+variable "nat_instance_type" {
+  description = "Smallest ARM instance size — this only needs to shuttle low-volume Lambda egress traffic."
+  type        = string
+  default     = "t4g.nano"
+}
