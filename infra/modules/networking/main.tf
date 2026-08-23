@@ -75,11 +75,39 @@ resource "aws_security_group" "nat_instance" {
   tags = { Name = "${var.project}-nat-instance-sg" }
 }
 
+# Lets us actually inspect/debug the NAT instance (aws ssm start-session)
+# without opening SSH or managing a key pair.
+data "aws_iam_policy_document" "nat_instance_assume_role" {
+  statement {
+    actions = ["sts:AssumeRole"]
+    principals {
+      type        = "Service"
+      identifiers = ["ec2.amazonaws.com"]
+    }
+  }
+}
+
+resource "aws_iam_role" "nat_instance" {
+  name               = "${var.project}-nat-instance-role"
+  assume_role_policy = data.aws_iam_policy_document.nat_instance_assume_role.json
+}
+
+resource "aws_iam_role_policy_attachment" "nat_instance_ssm" {
+  role       = aws_iam_role.nat_instance.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
+}
+
+resource "aws_iam_instance_profile" "nat_instance" {
+  name = "${var.project}-nat-instance-profile"
+  role = aws_iam_role.nat_instance.name
+}
+
 resource "aws_instance" "nat" {
   ami                    = data.aws_ami.nat_instance.id
   instance_type          = var.nat_instance_type
   subnet_id              = aws_subnet.public[0].id
   vpc_security_group_ids = [aws_security_group.nat_instance.id]
+  iam_instance_profile   = aws_iam_instance_profile.nat_instance.name
 
   # Required for a NAT instance: it must be allowed to forward traffic that
   # isn't addressed to itself.
