@@ -86,6 +86,7 @@ resource "aws_lambda_function" "this" {
   role          = aws_iam_role.this.arn
   package_type  = "Image"
   image_uri     = var.image_uri
+  architectures = ["x86_64"] # matches CodeBuild's own image and the bootstrap pull's --platform pin
   memory_size   = var.memory_size
   timeout       = var.timeout_seconds
 
@@ -110,6 +111,14 @@ resource "aws_lambda_function" "this" {
   depends_on = [aws_cloudwatch_log_group.this, aws_iam_role_policy.this]
 
   tags = { Name = local.name }
+
+  lifecycle {
+    # CodePipeline deploys real code via `aws lambda update-function-code`,
+    # bypassing Terraform entirely. Without this, the next `terraform apply`
+    # after any real deploy would see image_uri still pointing at Terraform's
+    # bootstrap tag and silently roll the function back to the placeholder.
+    ignore_changes = [image_uri]
+  }
 }
 
 resource "aws_lambda_event_source_mapping" "sqs" {

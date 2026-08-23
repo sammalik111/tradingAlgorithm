@@ -14,14 +14,18 @@ phases:
   pre_build:
     commands:
       - IMAGE_TAG=$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | cut -c1-12)
-      - aws ecr get-login-password --region "$AWS_DEFAULT_REGION" | docker login --username AWS --password-stdin "$BACKEND_ECR_URL"
-      - aws ecr get-login-password --region "$AWS_DEFAULT_REGION" | docker login --username AWS --password-stdin "$WORKERS_ECR_URL"
+      - ECR_REGISTRY_HOST=$(echo "$BACKEND_ECR_URL" | cut -d/ -f1)
+      - aws ecr get-login-password --region "$AWS_DEFAULT_REGION" | docker login --username AWS --password-stdin "$ECR_REGISTRY_HOST"
 
   build:
     commands:
-      - docker build -t "$BACKEND_ECR_URL:$IMAGE_TAG" backend/
+      # --platform linux/amd64 matches the Lambda functions' explicit
+      # architectures = ["x86_64"] (infra/modules/lambda/main.tf) — CodeBuild
+      # already runs on x86_64 so this is redundant today, but pins the
+      # invariant explicitly rather than relying on the runner's architecture.
+      - docker build --platform linux/amd64 -t "$BACKEND_ECR_URL:$IMAGE_TAG" backend/
       - docker push "$BACKEND_ECR_URL:$IMAGE_TAG"
-      - docker build -t "$WORKERS_ECR_URL:$IMAGE_TAG" workers/
+      - docker build --platform linux/amd64 -t "$WORKERS_ECR_URL:$IMAGE_TAG" workers/
       - docker push "$WORKERS_ECR_URL:$IMAGE_TAG"
 
       - pip install --quiet backend/.

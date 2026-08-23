@@ -22,6 +22,12 @@ locals {
 # Keychain, etc.), and two concurrent logins to the same registry race and
 # can corrupt that write, so every registry auth is centralized in this one
 # resource instead of being duplicated per bootstrap push.
+#
+# `--platform linux/amd64` is required, not cosmetic: Lambda functions here
+# default to the x86_64 architecture (matching CodeBuild's own image), but
+# `docker pull` without a platform pin grabs whatever architecture matches
+# the machine running `terraform apply` — arm64 on Apple Silicon — which
+# Lambda then rejects.
 resource "null_resource" "ecr_login_and_pull" {
   triggers = {
     registry_host = local.ecr_registry_host
@@ -33,7 +39,7 @@ resource "null_resource" "ecr_login_and_pull" {
       set -euo pipefail
       aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin public.ecr.aws
       aws ecr get-login-password --region ${var.aws_region} | docker login --username AWS --password-stdin ${local.ecr_registry_host}
-      docker pull ${local.bootstrap_source_image}
+      docker pull --platform linux/amd64 ${local.bootstrap_source_image}
     EOT
   }
 }

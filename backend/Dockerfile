@@ -1,14 +1,10 @@
-FROM python:3.11-slim
+FROM public.ecr.aws/lambda/python:3.11
 
-WORKDIR /app
+COPY pyproject.toml ${LAMBDA_TASK_ROOT}/pyproject.toml
+COPY src ${LAMBDA_TASK_ROOT}/src
 
-COPY pyproject.toml ./
-COPY src ./src
-COPY alembic.ini ./
-COPY alembic ./alembic
+RUN pip install --no-cache-dir "${LAMBDA_TASK_ROOT}" --target "${LAMBDA_TASK_ROOT}"
 
-RUN pip install --no-cache-dir .
-
-EXPOSE 8000
-
-CMD ["uvicorn", "trading_backend.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Overridden per Lambda function in infra/modules/lambda (backend-api vs
+# recommendation-engine use the same image, different handlers).
+CMD ["trading_backend.main.handler"]
