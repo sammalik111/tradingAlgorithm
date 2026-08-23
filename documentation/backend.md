@@ -133,6 +133,18 @@ shape a future implementation must match (`get_positions()` today).
 `RobinhoodNotConfiguredError` on every call. No credential flow, no order
 placement — this repo currently only produces read-only recommendations.
 
+## Container images
+
+Two Dockerfiles, not one:
+
+- `Dockerfile` — built on `public.ecr.aws/lambda/python:3.11`, includes the
+  Lambda Runtime Interface Client. This is the one CodeBuild deploys to
+  AWS (`backend-api` and `recommendation-engine` both use it, with
+  different `image_command` overrides — see `documentation/infra.md`).
+- `Dockerfile.dev` — plain `python:3.11-slim` running `uvicorn` directly.
+  Local-development only, used by the root `docker-compose.yml`; not
+  deployable as a Lambda image.
+
 ## Database migrations
 
 `alembic/` manages the schema (single source of truth — `workers/`'s

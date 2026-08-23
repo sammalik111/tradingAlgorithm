@@ -21,7 +21,9 @@ services:
       - "6379:6379"
 
   backend:
-    build: ./backend
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev
     environment:
       DATABASE_URL: postgresql+asyncpg://trading:trading@postgres:5432/trading
       REDIS_URL: redis://redis:6379/0
