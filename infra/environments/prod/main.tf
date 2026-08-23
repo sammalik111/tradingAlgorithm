@@ -167,10 +167,11 @@ module "process_trade_message_lambda" {
   memory_size     = 256
   timeout_seconds = 30
 
-  # Kept low deliberately: Aurora's min capacity is 0.5 ACU, so we don't
-  # want a burst of SQS messages opening more connections than that can
-  # comfortably serve.
-  reserved_concurrent_executions = 2
+  # A reservation here (to keep SQS bursts from opening more DB connections
+  # than Aurora's 0.5 ACU floor can serve) is left off deliberately: a new
+  # AWS account's default unreserved-concurrency pool is often too small to
+  # carve any out of without erroring. Revisit once there's a quota bump or
+  # real traffic to size against.
 
   vpc_enabled        = true
   subnet_ids         = module.networking.private_subnet_ids
