@@ -85,6 +85,12 @@ resource "aws_instance" "nat" {
   # isn't addressed to itself.
   source_dest_check = false
 
+  # Defaults to false in the AWS provider. Without this, a user_data change
+  # just updates the metadata on the *existing* running instance instead of
+  # replacing it — and EC2 only ever executes user_data on first boot, so a
+  # fixed boot script would silently never actually run.
+  user_data_replace_on_change = true
+
   # Amazon Linux 2023 does not ship `iptables` by default — installing it
   # explicitly (rather than assuming it's present) is the fix for a real
   # failure mode: if the binary didn't exist, `set -e` would stop the
