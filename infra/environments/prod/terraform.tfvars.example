@@ -1,0 +1,10 @@
+aws_region         = "us-east-1"
+availability_zones = ["us-east-1a", "us-east-1b"]
+
+github_owner  = "sammalik111"
+github_repo   = "tradingAlgorithm"
+deploy_branch = "main"
+
+# Fill in after the first apply, then re-apply to lock CORS down to the
+# real CloudFront domain instead of the auto-derived default.
+frontend_cors_origins = []
