@@ -39,12 +39,3 @@ variable "frontend_cors_origins" {
   type        = list(string)
   default     = []
 }
-
-# Container-image Lambdas can't be created before an image exists in ECR.
-# These placeholders let a first `terraform apply` succeed on an empty
-# account; the weekly/manual CodePipeline run replaces them with the real
-# backend/workers images on its first successful deploy.
-variable "bootstrap_image_uri" {
-  type    = string
-  default = "public.ecr.aws/lambda/python:3.11"
-}
