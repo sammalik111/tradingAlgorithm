@@ -1,0 +1,46 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "trading-workers"
+version = "0.1.0"
+description = "Nightly scrapers and SQS-driven ingest workers for the trading recommendation platform"
+requires-python = ">=3.11"
+dependencies = [
+  "httpx>=0.27.2",
+  "boto3>=1.35.24",
+  "sqlalchemy[asyncio]>=2.0.35",
+  "asyncpg>=0.29.0",
+  "pydantic>=2.9.2",
+  "pydantic-settings>=2.5.2",
+  "python-json-logger>=2.0.7",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.3.3",
+  "pytest-asyncio>=0.24.0",
+  "respx>=0.21.1",
+  "ruff>=0.6.9",
+  "mypy>=1.11.2",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/trading_workers"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+ignore = ["UP042"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+
+[tool.mypy]
+python_version = "3.11"
+ignore_missing_imports = true

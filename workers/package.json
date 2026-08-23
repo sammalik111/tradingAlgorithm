@@ -1,0 +1,11 @@
+{
+  "name": "workers",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": {
+    "build": "echo 'workers: no build step (deployed as Lambda zips via CI, see infra/)'",
+    "lint": "ruff check .",
+    "test": "pytest",
+    "typecheck": "mypy src"
+  }
+}

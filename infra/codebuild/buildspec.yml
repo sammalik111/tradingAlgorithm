@@ -1,0 +1,42 @@
+version: 0.2
+
+# Runs weekly (or on a manual pipeline release). Builds both Lambda
+# container images, runs Alembic migrations against Aurora, builds the
+# frontend, and rolls all of it out. Every env var referenced below is set
+# on the CodeBuild project in infra/modules/codepipeline/main.tf.
+
+phases:
+  install:
+    runtime-versions:
+      python: 3.11
+      nodejs: 20
+
+  pre_build:
+    commands:
+      - IMAGE_TAG=$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | cut -c1-12)
+      - aws ecr get-login-password --region "$AWS_DEFAULT_REGION" | docker login --username AWS --password-stdin "$BACKEND_ECR_URL"
+      - aws ecr get-login-password --region "$AWS_DEFAULT_REGION" | docker login --username AWS --password-stdin "$WORKERS_ECR_URL"
+
+  build:
+    commands:
+      - docker build -t "$BACKEND_ECR_URL:$IMAGE_TAG" backend/
+      - docker push "$BACKEND_ECR_URL:$IMAGE_TAG"
+      - docker build -t "$WORKERS_ECR_URL:$IMAGE_TAG" workers/
+      - docker push "$WORKERS_ECR_URL:$IMAGE_TAG"
+
+      - pip install --quiet backend/.
+      - DB_SECRET=$(aws secretsmanager get-secret-value --secret-id "$DB_MASTER_SECRET_ARN" --query SecretString --output text)
+      - DB_USER=$(echo "$DB_SECRET" | python3 -c "import sys, json; print(json.load(sys.stdin)['username'])")
+      - DB_PASSWORD=$(echo "$DB_SECRET" | python3 -c "import sys, json; print(json.load(sys.stdin)['password'])")
+      - export DATABASE_URL="postgresql+asyncpg://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:5432/${DB_NAME}"
+      - (cd backend && alembic upgrade head)
+
+      - corepack enable
+      - cd frontend && pnpm install --frozen-lockfile && pnpm build && cd ..
+      - aws s3 sync frontend/dist "s3://$FRONTEND_BUCKET" --delete
+      - aws cloudfront create-invalidation --distribution-id "$CLOUDFRONT_DISTRIBUTION_ID" --paths "/*"
+
+      - aws lambda update-function-code --function-name "$BACKEND_API_FUNCTION" --image-uri "$BACKEND_ECR_URL:$IMAGE_TAG" > /dev/null
+      - aws lambda update-function-code --function-name "$RECOMMENDATION_ENGINE_FUNCTION" --image-uri "$BACKEND_ECR_URL:$IMAGE_TAG" > /dev/null
+      - aws lambda update-function-code --function-name "$NIGHTLY_SCRAPE_FUNCTION" --image-uri "$WORKERS_ECR_URL:$IMAGE_TAG" > /dev/null
+      - aws lambda update-function-code --function-name "$PROCESS_TRADE_MESSAGE_FUNCTION" --image-uri "$WORKERS_ECR_URL:$IMAGE_TAG" > /dev/null
