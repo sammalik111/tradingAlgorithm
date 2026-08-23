@@ -2,6 +2,8 @@ from functools import lru_cache
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from trading_workers.db.secret_credentials import resolve_database_url
+
 
 class Settings(BaseSettings):
     """Runtime configuration, sourced from environment variables / .env."""
@@ -11,7 +13,13 @@ class Settings(BaseSettings):
     environment: str = "local"
     log_level: str = "INFO"
 
-    database_url: str = "postgresql+asyncpg://trading:trading@localhost:5432/trading"
+    # Local dev sets `database_url` directly. In AWS, Terraform instead sets
+    # `db_secret_arn`/`db_host`/`db_name` and the password is resolved from
+    # the RDS-managed Secrets Manager secret at cold start.
+    database_url: str | None = None
+    db_secret_arn: str | None = None
+    db_host: str | None = None
+    db_name: str | None = None
     database_pool_size: int = 5
     database_echo: bool = False
 
@@ -19,6 +27,15 @@ class Settings(BaseSettings):
     trade_ingest_queue_url: str | None = None
 
     quiver_quant_api_key: str | None = None
+
+    @property
+    def resolved_database_url(self) -> str:
+        return resolve_database_url(
+            database_url=self.database_url,
+            secret_arn=self.db_secret_arn,
+            host=self.db_host,
+            db_name=self.db_name,
+        )
 
 
 @lru_cache

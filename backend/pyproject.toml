@@ -8,6 +8,7 @@ version = "0.1.0"
 description = "API and recommendation engine for the trading recommendation platform"
 requires-python = ">=3.11"
 dependencies = [
+  "boto3>=1.35.24",
   "fastapi>=0.115.0",
   "uvicorn[standard]>=0.30.6",
   "mangum>=0.19.0",

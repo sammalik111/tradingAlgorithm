@@ -16,7 +16,7 @@ from trading_workers.config import get_settings
 def get_engine() -> AsyncEngine:
     settings = get_settings()
     return create_async_engine(
-        settings.database_url,
+        settings.resolved_database_url,
         echo=settings.database_echo,
         pool_size=settings.database_pool_size,
         pool_pre_ping=True,
