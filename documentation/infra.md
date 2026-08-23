@@ -8,7 +8,7 @@ that's a manual step (see "Applying" below).
 
 | Module              | Provisions                                                                                     |
 | -------------------- | ------------------------------------------------------------------------------------------------ |
-| `networking`          | VPC, 2 public + 2 private subnets, 1 NAT instance (t4g.nano), security groups for Lambda/Aurora/Redis |
+| `networking`          | VPC, 2 public + 2 private subnets, 1 NAT Gateway, security groups for Lambda/Aurora/Redis           |
 | `aurora`               | Aurora Serverless v2 (PostgreSQL), 0.5–2 ACU, single instance, RDS-managed master password           |
 | `redis`                 | ElastiCache Serverless (Redis) — pay-per-use, no always-on node                                       |
 | `sqs`                     | `trade-ingest` queue + dead-letter queue                                                                |
@@ -33,7 +33,7 @@ Four, all container-image, all built from `backend/Dockerfile` or
 | `process-trade-message`             | workers   | `trading_workers.jobs.process_trade_message.handler`                   | SQS                                | yes |
 
 `nightly-scrape` is the only one outside the VPC: it only needs outbound
-internet (to scrape) and the public SQS API, so it skips the NAT instance
+internet (to scrape) and the public SQS API, so it skips the NAT Gateway
 hop the other three need to reach Aurora/Redis privately.
 
 `networking` also creates a free S3 Gateway VPC Endpoint, attached to both
@@ -44,14 +44,13 @@ otherwise working fine for everything else.
 
 ## Networking cost note
 
-`networking` uses a self-managed NAT **instance** (`t4g.nano`, ~$3/mo) in
-place of a managed NAT Gateway (~$32/mo + data processing) — same job
-(outbound internet for the private-subnet Lambdas), much cheaper, at the
-cost of being a plain EC2 instance you're responsible for instead of a
-managed service (no automatic failover, patched by nobody unless you do
-it). Fine for a proof of concept; swap `aws_instance.nat` back for
-`aws_nat_gateway` in `infra/modules/networking/main.tf` before anything
-that needs real uptime guarantees.
+`networking` uses a managed NAT Gateway (~$32/mo + data processing). A
+cheaper self-managed NAT instance (`t4g.nano`, ~$3/mo) was tried first,
+but produced a string of hard-to-diagnose partial-connectivity failures
+(ECR auth succeeding intermittently, CloudWatch Logs delivery failing
+outright) despite its MASQUERADE rule visibly forwarding some traffic —
+inconsistent enough that the AWS-operated, self-healing managed service
+was worth the extra cost here.
 
 ## Credentials
 
