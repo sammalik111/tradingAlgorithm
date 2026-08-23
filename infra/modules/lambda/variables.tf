@@ -68,8 +68,20 @@ variable "extra_policy_statements" {
   default     = []
 }
 
+variable "create_sqs_trigger" {
+  description = <<-EOT
+    Whether to create an SQS event source mapping for this function. A
+    plain bool set directly by the caller, deliberately not inferred from
+    `sqs_trigger_arn != null` — that ARN usually comes from a queue that
+    doesn't exist yet on a fresh apply, so Terraform can't resolve the
+    comparison at plan time and errors on `count`.
+  EOT
+  type        = bool
+  default     = false
+}
+
 variable "sqs_trigger_arn" {
-  description = "If set, an SQS event source mapping is created for this function."
+  description = "Required when create_sqs_trigger is true."
   type        = string
   default     = null
 }

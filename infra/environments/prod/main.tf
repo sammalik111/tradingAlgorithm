@@ -132,7 +132,7 @@ module "nightly_scrape_lambda" {
   timeout_seconds = 300
 
   # Not in the VPC: it only needs internet (to scrape) and the public SQS
-  # API, so it skips the NAT Gateway hop private subnets require.
+  # API, so it skips the NAT instance hop private subnets require.
   vpc_enabled = false
 
   environment_variables = {
@@ -172,7 +172,8 @@ module "process_trade_message_lambda" {
   subnet_ids         = module.networking.private_subnet_ids
   security_group_ids = [module.networking.lambda_security_group_id]
 
-  sqs_trigger_arn = module.sqs.queue_arn
+  create_sqs_trigger = true
+  sqs_trigger_arn    = module.sqs.queue_arn
 
   secret_arns = [module.aurora.master_user_secret_arn]
 
