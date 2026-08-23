@@ -1,0 +1,11 @@
+{
+  "name": "backend",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": {
+    "build": "echo 'backend: no build step (deployed as Lambda zip via CI, see infra/)'",
+    "lint": "ruff check .",
+    "test": "pytest",
+    "typecheck": "mypy src"
+  }
+}

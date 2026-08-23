@@ -1,0 +1,53 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "trading-backend"
+version = "0.1.0"
+description = "API and recommendation engine for the trading recommendation platform"
+requires-python = ">=3.11"
+dependencies = [
+  "fastapi>=0.115.0",
+  "uvicorn[standard]>=0.30.6",
+  "mangum>=0.19.0",
+  "sqlalchemy[asyncio]>=2.0.35",
+  "asyncpg>=0.29.0",
+  "alembic>=1.13.2",
+  "pydantic>=2.9.2",
+  "pydantic-settings>=2.5.2",
+  "redis>=5.0.8",
+  "anthropic>=0.36.0",
+  "python-json-logger>=2.0.7",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.3.3",
+  "pytest-asyncio>=0.24.0",
+  "httpx>=0.27.2",
+  "ruff>=0.6.9",
+  "mypy>=1.11.2",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/trading_backend"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+ignore = ["UP042"]
+
+[tool.ruff.lint.per-file-ignores]
+"alembic/versions/*.py" = ["E501"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+
+[tool.mypy]
+python_version = "3.11"
+ignore_missing_imports = true
