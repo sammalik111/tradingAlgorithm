@@ -123,12 +123,15 @@ resource "aws_security_group" "aurora" {
   description = "Aurora Postgres cluster"
   vpc_id      = aws_vpc.main.id
 
-  ingress {
-    from_port       = 5432
-    to_port         = 5432
-    protocol        = "tcp"
-    security_groups = [aws_security_group.lambda.id]
-  }
+  # No inline ingress block, deliberately: infra/modules/codepipeline also
+  # adds an ingress rule to this security group (for CodeBuild's Alembic
+  # migration step) as a standalone aws_security_group_rule. Mixing an
+  # inline ingress block with a standalone rule on the same security group
+  # is a known Terraform/AWS-provider conflict — the inline block is
+  # treated as the *complete* rule set, so any apply that touches this
+  # resource silently deletes rules added out-of-band by the other module.
+  # Every ingress rule for this security group must be a standalone
+  # aws_security_group_rule for that reason (see aurora_from_lambda below).
 
   egress {
     from_port   = 0
@@ -138,6 +141,16 @@ resource "aws_security_group" "aurora" {
   }
 
   tags = { Name = "${var.project}-aurora-sg" }
+}
+
+resource "aws_security_group_rule" "aurora_from_lambda" {
+  type                     = "ingress"
+  from_port                = 5432
+  to_port                  = 5432
+  protocol                 = "tcp"
+  security_group_id        = aws_security_group.aurora.id
+  source_security_group_id = aws_security_group.lambda.id
+  description              = "Allow VPC Lambdas to reach Aurora"
 }
 
 resource "aws_security_group" "redis" {
