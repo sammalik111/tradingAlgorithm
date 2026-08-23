@@ -15,7 +15,15 @@ phases:
     commands:
       - IMAGE_TAG=$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | cut -c1-12)
       - ECR_REGISTRY_HOST=$(echo "$BACKEND_ECR_URL" | cut -d/ -f1)
-      - aws ecr get-login-password --region "$AWS_DEFAULT_REGION" | docker login --username AWS --password-stdin "$ECR_REGISTRY_HOST"
+      # privileged_mode's Docker daemon can still be starting up when
+      # pre_build begins; wait for it rather than racing the first command.
+      - for i in $(seq 1 30); do docker info > /dev/null 2>&1 && break; sleep 2; done
+      - docker info
+      # Split from `docker login` (previously one piped command) so a
+      # future failure is attributable to a specific line instead of a
+      # single ambiguous "exit status 1" covering both.
+      - ECR_PASSWORD=$(aws ecr get-login-password --region "$AWS_DEFAULT_REGION")
+      - echo "$ECR_PASSWORD" | docker login --username AWS --password-stdin "$ECR_REGISTRY_HOST"
 
   build:
     commands:
