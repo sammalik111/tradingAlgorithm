@@ -81,11 +81,21 @@ that needs real uptime guarantees.
 
 ## Bootstrapping a container-image Lambda before any image exists
 
-A `package_type = "Image"` Lambda can't be created before its image
-exists in ECR. `bootstrap_image_uri` (default
-`public.ecr.aws/lambda/python:3.11`) lets the first `terraform apply`
-succeed on an empty account; the first successful CodePipeline run
-replaces it with the real image via `update-function-code`.
+A `package_type = "Image"` Lambda must reference an image already in a
+*private* ECR repo in this account/region — AWS does not accept an image
+referenced directly from a public registry (public.ecr.aws included) as a
+Lambda source image, and on a fresh account there's no real
+backend/workers image yet either.
+
+`infra/environments/prod/bootstrap_images.tf` handles this: two
+`null_resource`s with a `local-exec` provisioner pull AWS's own
+`public.ecr.aws/lambda/python:3.11` base image and re-push it into our
+private `backend`/`workers` ECR repos as a `:bootstrap` tag, which the
+four Lambda modules then reference (with an explicit `depends_on` so
+Terraform pushes the image before creating the function). Requires Docker
+and the AWS CLI on the machine running `terraform apply`. The first
+successful CodePipeline run replaces this placeholder with the real image
+via `update-function-code`.
 
 ## Applying
 

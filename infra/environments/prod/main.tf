@@ -70,12 +70,13 @@ locals {
 }
 
 module "backend_api_lambda" {
-  source = "../../modules/lambda"
+  source     = "../../modules/lambda"
+  depends_on = [null_resource.bootstrap_backend_image]
 
   project         = var.project
   environment     = var.environment
   function_name   = "backend-api"
-  image_uri       = var.bootstrap_image_uri
+  image_uri       = local.backend_bootstrap_image
   image_command   = ["trading_backend.main.handler"]
   memory_size     = 512
   timeout_seconds = 15
@@ -96,12 +97,13 @@ module "backend_api_lambda" {
 }
 
 module "recommendation_engine_lambda" {
-  source = "../../modules/lambda"
+  source     = "../../modules/lambda"
+  depends_on = [null_resource.bootstrap_backend_image]
 
   project         = var.project
   environment     = var.environment
   function_name   = "recommendation-engine"
-  image_uri       = var.bootstrap_image_uri
+  image_uri       = local.backend_bootstrap_image
   image_command   = ["trading_backend.recommendation_engine.lambda_handler.handler"]
   memory_size     = 512
   timeout_seconds = 300
@@ -121,12 +123,13 @@ module "recommendation_engine_lambda" {
 }
 
 module "nightly_scrape_lambda" {
-  source = "../../modules/lambda"
+  source     = "../../modules/lambda"
+  depends_on = [null_resource.bootstrap_workers_image]
 
   project         = var.project
   environment     = var.environment
   function_name   = "nightly-scrape"
-  image_uri       = var.bootstrap_image_uri
+  image_uri       = local.workers_bootstrap_image
   image_command   = ["trading_workers.jobs.nightly_scrape.handler"]
   memory_size     = 512
   timeout_seconds = 300
@@ -153,12 +156,13 @@ module "nightly_scrape_lambda" {
 }
 
 module "process_trade_message_lambda" {
-  source = "../../modules/lambda"
+  source     = "../../modules/lambda"
+  depends_on = [null_resource.bootstrap_workers_image]
 
   project         = var.project
   environment     = var.environment
   function_name   = "process-trade-message"
-  image_uri       = var.bootstrap_image_uri
+  image_uri       = local.workers_bootstrap_image
   image_command   = ["trading_workers.jobs.process_trade_message.handler"]
   memory_size     = 256
   timeout_seconds = 30

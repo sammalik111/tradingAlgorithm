@@ -5,6 +5,14 @@ resource "aws_db_subnet_group" "aurora" {
   tags = { Name = "${var.project}-${var.environment}-aurora" }
 }
 
+# AWS periodically retires old Aurora PostgreSQL minor versions, so a
+# hardcoded version string (e.g. "15.4") can start failing CreateDBCluster
+# with no warning. Look up whatever the current default actually is instead.
+data "aws_rds_engine_version" "postgresql" {
+  engine = "aurora-postgresql"
+  latest = true
+}
+
 # Aurora Serverless v2, single instance, no reader — the smallest and
 # cheapest configuration that still gives us Postgres-compatible Aurora.
 # Scale up (add a reader, raise max_capacity_acu) once real traffic needs it.
@@ -12,7 +20,7 @@ resource "aws_rds_cluster" "this" {
   cluster_identifier          = "${var.project}-${var.environment}"
   engine                      = "aurora-postgresql"
   engine_mode                 = "provisioned"
-  engine_version              = "15.4"
+  engine_version              = data.aws_rds_engine_version.postgresql.version
   database_name               = var.database_name
   master_username             = var.master_username
   manage_master_user_password = true
