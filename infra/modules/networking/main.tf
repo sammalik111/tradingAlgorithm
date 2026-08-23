@@ -85,28 +85,24 @@ resource "aws_instance" "nat" {
   # isn't addressed to itself.
   source_dest_check = false
 
+  # Amazon Linux 2023 does not ship `iptables` by default — installing it
+  # explicitly (rather than assuming it's present) is the fix for a real
+  # failure mode: if the binary didn't exist, `set -e` would stop the
+  # script right after enabling IP forwarding and before ever adding the
+  # MASQUERADE rule, silently leaving packets forwarded but not
+  # source-NAT'd — which forwards traffic without ever getting a usable
+  # reply back, i.e. general internet egress hangs/times out while
+  # anything with its own VPC endpoint (like S3) keeps working fine.
   user_data = <<-EOF
     #!/bin/bash
     set -e
+    dnf install -y iptables-services
     sysctl -w net.ipv4.ip_forward=1
     echo "net.ipv4.ip_forward = 1" > /etc/sysctl.d/99-nat.conf
     IFACE=$(ip -o -4 route show to default | awk '{print $5}')
     iptables -t nat -A POSTROUTING -o "$IFACE" -j MASQUERADE
     iptables-save > /etc/sysconfig/iptables
-
-    cat > /etc/systemd/system/nat-iptables-restore.service <<'UNIT'
-    [Unit]
-    Description=Restore NAT iptables rule on boot
-    After=network.target
-
-    [Service]
-    Type=oneshot
-    ExecStart=/sbin/iptables-restore /etc/sysconfig/iptables
-
-    [Install]
-    WantedBy=multi-user.target
-    UNIT
-    systemctl enable nat-iptables-restore.service
+    systemctl enable --now iptables
   EOF
 
   tags = { Name = "${var.project}-nat-instance" }
