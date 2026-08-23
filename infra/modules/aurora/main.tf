@@ -7,15 +7,18 @@ resource "aws_db_subnet_group" "aurora" {
 
 # AWS periodically retires old Aurora PostgreSQL minor versions, so a
 # hardcoded version string (e.g. "15.4") can start failing CreateDBCluster
-# with no warning. Look up the latest available *patch* instead — but
-# pinned to major version 15 via parameter_group_family, since Aurora
-# treats a major-version change as a forced replace (destroy + recreate)
-# rather than an in-place upgrade, which `latest = true` alone can silently
-# walk into the moment AWS ships a new major version as the true latest.
+# with no warning. `preferred_versions` picks the first entry AWS actually
+# has available, newest-first, so patch churn resolves itself automatically.
+# Deliberately NOT using `latest = true`: it can silently pick a new major
+# version, which forces a destroy+recreate rather than an in-place upgrade
+# (and `parameter_group_family`, the other way to pin a major version, is
+# mutually exclusive with `latest` on this data source).
 data "aws_rds_engine_version" "postgresql" {
-  engine                 = "aurora-postgresql"
-  parameter_group_family = "aurora-postgresql15"
-  latest                 = true
+  engine = "aurora-postgresql"
+  preferred_versions = [
+    "15.15", "15.14", "15.13", "15.12", "15.10",
+    "15.8", "15.7", "15.6", "15.5", "15.4", "15.3", "15.2",
+  ]
 }
 
 # Aurora Serverless v2, single instance, no reader — the smallest and
