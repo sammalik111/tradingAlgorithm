@@ -36,6 +36,12 @@ Four, all container-image, all built from `backend/Dockerfile` or
 internet (to scrape) and the public SQS API, so it skips the NAT instance
 hop the other three need to reach Aurora/Redis privately.
 
+`networking` also creates a free S3 Gateway VPC Endpoint, attached to both
+route tables. CodeBuild runs in the private subnets (see `codepipeline`
+below) and needs it specifically to download its source/artifacts from
+S3 — that download can time out through NAT alone even when NAT is
+otherwise working fine for everything else.
+
 ## Networking cost note
 
 `networking` uses a self-managed NAT **instance** (`t4g.nano`, ~$3/mo) in

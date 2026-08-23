@@ -1,3 +1,5 @@
+data "aws_region" "current" {}
+
 locals {
   az_count = length(var.availability_zones)
 }
@@ -148,6 +150,20 @@ resource "aws_route_table_association" "private" {
   count          = local.az_count
   subnet_id      = aws_subnet.private[count.index].id
   route_table_id = aws_route_table.private.id
+}
+
+# Free (no hourly charge, unlike interface endpoints). Routes S3 traffic
+# directly within AWS's network instead of out through the NAT instance.
+# CodeBuild running in the private subnets needs this specifically to
+# download its source/artifacts from S3 — without it, that download can
+# time out even with working NAT/internet egress otherwise.
+resource "aws_vpc_endpoint" "s3" {
+  vpc_id            = aws_vpc.main.id
+  service_name      = "com.amazonaws.${data.aws_region.current.name}.s3"
+  vpc_endpoint_type = "Gateway"
+  route_table_ids   = [aws_route_table.private.id, aws_route_table.public.id]
+
+  tags = { Name = "${var.project}-s3-endpoint" }
 }
 
 resource "aws_security_group" "lambda" {
