@@ -1,4 +1,5 @@
 import { render, screen } from "@testing-library/react";
+import { MemoryRouter } from "react-router-dom";
 import { describe, expect, it } from "vitest";
 import type { Recommendation } from "../api/types";
 import { RecommendationCard } from "./RecommendationCard";
@@ -16,7 +17,11 @@ const BASE_RECOMMENDATION: Recommendation = {
 
 describe("RecommendationCard", () => {
   it("renders the ticker, direction, and rationale", () => {
-    render(<RecommendationCard recommendation={BASE_RECOMMENDATION} />);
+    render(
+      <MemoryRouter>
+        <RecommendationCard recommendation={BASE_RECOMMENDATION} />
+      </MemoryRouter>,
+    );
 
     expect(screen.getByText("NVDA")).toBeInTheDocument();
     expect(screen.getByText(/BUY/)).toBeInTheDocument();
@@ -24,8 +29,23 @@ describe("RecommendationCard", () => {
   });
 
   it("omits the rationale paragraph when none is available", () => {
-    render(<RecommendationCard recommendation={{ ...BASE_RECOMMENDATION, rationale_text: null }} />);
+    render(
+      <MemoryRouter>
+        <RecommendationCard recommendation={{ ...BASE_RECOMMENDATION, rationale_text: null }} />
+      </MemoryRouter>,
+    );
 
     expect(screen.queryByText(/Multiple politicians disclosed/)).not.toBeInTheDocument();
+  });
+
+  it("links to the recommendation detail page", () => {
+    render(
+      <MemoryRouter>
+        <RecommendationCard recommendation={BASE_RECOMMENDATION} />
+      </MemoryRouter>,
+    );
+
+    const links = screen.getAllByRole("link");
+    expect(links.every((link) => link.getAttribute("href") === "/recommendations/11111111-1111-1111-1111-111111111111")).toBe(true);
   });
 });

@@ -1,10 +1,13 @@
+import { Link } from "react-router-dom";
 import type { Recommendation } from "../api/types";
 
 export function RecommendationCard({ recommendation }: { recommendation: Recommendation }) {
   return (
     <article className={`recommendation-card direction-${recommendation.direction}`}>
       <header>
-        <h3>{recommendation.ticker}</h3>
+        <h3>
+          <Link to={`/recommendations/${recommendation.id}`}>{recommendation.ticker}</Link>
+        </h3>
         <span className={`badge conviction-${recommendation.conviction}`}>
           {recommendation.direction.toUpperCase()} &middot; {recommendation.conviction} conviction
         </span>
@@ -15,6 +18,9 @@ export function RecommendationCard({ recommendation }: { recommendation: Recomme
         <time dateTime={recommendation.generated_at}>
           {new Date(recommendation.generated_at).toLocaleDateString()}
         </time>
+        <Link to={`/recommendations/${recommendation.id}`} className="detail-link">
+          View details &amp; simulate trade &rarr;
+        </Link>
       </footer>
     </article>
   );

@@ -120,6 +120,23 @@ Join table: which `canonical_trades` fed a given recommendation's score.
 | `recommendation_id`       | uuid, FK → `recommendations.id`                 |
 | `canonical_trade_id`        | uuid, FK → `canonical_trades.id`                   |
 
+### `simulated_orders`
+
+Paper-trade log entries against a recommendation. No real brokerage is
+ever called (see `documentation/backend.md`'s "Simulated trade logging"
+section) — `price` is whatever the caller previewed/confirmed at, not a
+fetched market quote, since this repo has no market-data integration.
+
+| Column               | Type                                     |
+| --------------------- | ------------------------------------------- |
+| `id`                    | uuid, PK                                       |
+| `recommendation_id`      | uuid, FK → `recommendations.id`                  |
+| `ticker`                    | text                                                |
+| `side`                        | enum: `buy`, `sell`                                    |
+| `quantity`                       | numeric(16,4)                                             |
+| `price`                            | numeric(16,2) — caller-supplied, not a real market quote     |
+| `notional_value`                     | numeric(16,2) — `quantity * price`                              |
+
 ## Entity relationships
 
 ```
@@ -131,5 +148,5 @@ sources ──< raw_trade_events >── politicians
                   │
                   │ (via recommendation_supporting_trades)
                   ▼
-             recommendations
+             recommendations ──< simulated_orders
 ```
