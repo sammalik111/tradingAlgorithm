@@ -16,21 +16,32 @@ down_revision: str | None = None
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
+# create_type=False on every enum used in a column: the enums are created
+# explicitly in upgrade() below (and dropped explicitly in downgrade()).
+# Without this, op.create_table's DDL for an ENUM column re-issues
+# CREATE TYPE unconditionally (Alembic executes CreateTable directly rather
+# than through MetaData.create_all()'s checkfirst path, so the type's own
+# checkfirst default never applies there), causing a duplicate-type error.
 source_code_enum = postgresql.ENUM(
     "senate_stock_watcher",
     "house_stock_watcher",
     "quiver_quant",
     "sec_edgar",
     name="source_code",
+    create_type=False,
 )
-chamber_enum = postgresql.ENUM("house", "senate", "executive", name="chamber")
-transaction_type_enum = postgresql.ENUM("buy", "sell", "exchange", name="transaction_type")
+chamber_enum = postgresql.ENUM("house", "senate", "executive", name="chamber", create_type=False)
+transaction_type_enum = postgresql.ENUM(
+    "buy", "sell", "exchange", name="transaction_type", create_type=False
+)
 canonical_transaction_type_enum = postgresql.ENUM(
-    "buy", "sell", "exchange", name="canonical_transaction_type"
+    "buy", "sell", "exchange", name="canonical_transaction_type", create_type=False
 )
-conviction_level_enum = postgresql.ENUM("low", "medium", "high", name="conviction_level")
+conviction_level_enum = postgresql.ENUM(
+    "low", "medium", "high", name="conviction_level", create_type=False
+)
 recommendation_direction_enum = postgresql.ENUM(
-    "buy", "sell", "hold", name="recommendation_direction"
+    "buy", "sell", "hold", name="recommendation_direction", create_type=False
 )
 
 
