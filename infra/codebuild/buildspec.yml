@@ -13,7 +13,12 @@ phases:
 
   pre_build:
     commands:
-      - IMAGE_TAG=$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | cut -c1-12)
+      # Commit SHA prefix for traceability + the CodeBuild build number so
+      # re-running the pipeline against the same commit (weekly schedule
+      # with no new commits, a manual re-trigger, a retry after a failure)
+      # never reuses a tag -- the ECR repos are image_tag_mutability =
+      # "IMMUTABLE", so a reused tag fails the docker push outright.
+      - IMAGE_TAG=$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | cut -c1-12)-$CODEBUILD_BUILD_NUMBER
       - ECR_REGISTRY_HOST=$(echo "$BACKEND_ECR_URL" | cut -d/ -f1)
       # privileged_mode's Docker daemon can still be starting up when
       # pre_build begins; wait for it rather than racing the first command.

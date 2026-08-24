@@ -88,10 +88,28 @@ section for details.
 
 ## Deploying
 
-Nothing here deploys itself. `infra/` is Terraform for the full AWS stack
-(Aurora, Redis, SQS, Lambda, API Gateway, CloudFront, and a CodePipeline
-that redeploys weekly or on manual trigger — never on every push). See
-`documentation/infra.md` for the full apply/bootstrap steps.
+Nothing here deploys itself — no push, PR merge, or git hook ever
+touches real AWS. `infra/` is Terraform for the full AWS stack (Aurora,
+Redis, SQS, Lambda, API Gateway, CloudFront, and a CodePipeline that
+redeploys weekly or on manual trigger). See `documentation/infra.md` for
+the full apply/bootstrap steps. Root `package.json` scripts cover the two
+things you'll actually run by hand, from anywhere in the repo (no `cd`
+needed):
+
+- **Shipped an app-code fix (backend/workers/frontend), no `infra/`
+  changes?** `pnpm deploy` is the only command you need — it starts the
+  CodePipeline, which builds fresh images, runs `alembic upgrade head`
+  against Aurora as part of its own build (see
+  `infra/codebuild/buildspec.yml`), and deploys. `pnpm deploy:status`
+  checks progress.
+- **Changed something under `infra/`?** `pnpm infra:plan` /
+  `pnpm infra:apply` (still prompts for confirmation — never
+  `-auto-approve`, this touches real infrastructure) /
+  `pnpm infra:output` for the Terraform outputs referenced throughout
+  these docs (e.g. `db_bastion_instance_id`).
+
+`pnpm migrate` / `pnpm migrate:gen` (see above) are for local dev only —
+they don't touch production, which gets migrated by the pipeline itself.
 
 ## Data pull cadence
 

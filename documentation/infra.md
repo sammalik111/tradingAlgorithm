@@ -93,9 +93,13 @@ in Terraform state or a Lambda env var):
 
 ```
 aws secretsmanager get-secret-value \
-  --secret-id $(terraform output -raw aurora_master_secret_arn) \
+  --secret-id $(pnpm infra:output -raw aurora_master_secret_arn) \
   --query SecretString --output text | jq -r .password
 ```
+
+(`pnpm infra:output -raw <name>` works from anywhere in the repo; the bare
+`terraform output -raw <name>` used in the rest of this section is the same
+thing, just requires being `cd`'d into `infra/environments/prod/` first.)
 
 ### Via SSM
 
@@ -148,10 +152,11 @@ the SSH connection itself for the lifetime of the DB connection.
 - An EventBridge schedule (`deploy_schedule_expression`, default Monday
   09:00 UTC) calls `codepipeline:StartPipelineExecution` once a week.
   Triggering a deploy outside that schedule means clicking "Release
-  change" in the CodePipeline console, or:
-  ```
-  aws codepipeline start-pipeline-execution --name trading-platform-prod-deploy
-  ```
+  change" in the CodePipeline console, or `pnpm deploy` from anywhere in
+  the repo (root `package.json` — `pnpm deploy:status` checks progress).
+  This is the only command a normal app-code fix needs: the build stage
+  above already runs the migration, so there's no separate manual
+  migrate-then-deploy dance.
 
 ## Bootstrapping a container-image Lambda before any image exists
 
@@ -173,14 +178,19 @@ via `update-function-code`.
 
 ## Applying
 
-1. `terraform init` (from `infra/environments/prod/`).
-2. `terraform apply`.
+1. `terraform init` (from `infra/environments/prod/`, or `pnpm infra:plan`
+   from anywhere in the repo — the root `package.json` scripts use
+   `terraform -chdir=infra/environments/prod`, so no `cd` needed either
+   way, and running the wrong Terraform command in the wrong directory
+   against the wrong state file isn't a mistake that's available anymore).
+2. `terraform apply`, or `pnpm infra:apply` (still prompts for
+   confirmation — these scripts don't add `-auto-approve`).
 3. In the AWS Console → Developer Tools → Settings → Connections, find
    the `trading-platform-prod-github` connection and complete the GitHub
    OAuth handshake (can't be scripted).
 4. Populate the Secrets Manager placeholders above.
-5. Either wait for the weekly schedule or manually start the pipeline to
-   get real application code onto the bootstrap Lambdas.
+5. Either wait for the weekly schedule or `pnpm deploy` to get real
+   application code onto the bootstrap Lambdas.
 
 Remote state is local by default (`versions.tf`). To use an S3 backend
 instead, create the bucket + DynamoDB lock table once by hand, uncomment

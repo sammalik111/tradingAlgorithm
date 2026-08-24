@@ -7,7 +7,7 @@
     "lint": "ruff check .",
     "test": "pytest",
     "typecheck": "mypy src",
-    "migrate": "alembic upgrade head",
-    "migrate:gen": "python scripts/new_migration.py"
+    "migrate": "PATH=\"$PWD/.venv/bin:$PATH\" alembic upgrade head",
+    "migrate:gen": "PATH=\"$PWD/.venv/bin:$PATH\" python scripts/new_migration.py"
   }
 }
