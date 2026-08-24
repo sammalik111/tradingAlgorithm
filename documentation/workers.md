@@ -122,7 +122,10 @@ three times.
 
 `TradeIngestMessage` is a 1:1 pydantic mirror of `RawTradeRecord`
 (`from_record`/`to_record` convert between them). `sqs_client.enqueue_trade`
-publishes it as JSON to `TRADE_INGEST_QUEUE_URL`.
+publishes it as JSON to `TRADE_INGEST_QUEUE_URL`. `sqs_client.get_sqs_client`
+passes `Settings.aws_endpoint_url` (unset in AWS, real endpoints; set to
+LocalStack locally) as boto3's `endpoint_url` — a no-op when unset, so this
+is the only code difference between local and real AWS.
 
 ## Jobs (`jobs/`)
 
@@ -132,3 +135,37 @@ publishes it as JSON to `TRADE_INGEST_QUEUE_URL`.
   the batch, resolves the `Source` row, calls `ingest_record`, and
   commits. Returns SQS's `batchItemFailures` format so only messages that
   actually failed are redelivered, not the whole batch.
+
+## Running locally against LocalStack (`local/`)
+
+Neither job is a server — both are Lambda handlers, invoked on demand —
+and locally there's no SQS event source mapping to drive
+`process_trade_message` automatically. `local/` has the pieces to run the
+whole pipeline by hand against [LocalStack](https://localstack.cloud)
+(never real AWS, no cost):
+
+- `docker-compose.yml`'s `localstack` service runs LocalStack with only
+  `SERVICES: sqs` enabled, and mounts `local/localstack_init.sh` into
+  LocalStack's init hook (`/etc/localstack/init/ready.d/`) to create the
+  `trade-ingest` queue on startup.
+- `docker-compose.yml`'s `workers` service sets `AWS_ENDPOINT_URL` to the
+  LocalStack container, plus a `TRADE_INGEST_QUEUE_URL` that matches the
+  queue the init script creates, and dummy `AWS_ACCESS_KEY_ID`/
+  `AWS_SECRET_ACCESS_KEY` (LocalStack doesn't validate these, but boto3
+  requires *something* be set). It has no long-running process — `exec`
+  into it to run the scripts below.
+- `local/run_nightly_scrape.py` — calls `nightly_scrape.handler` directly
+  and prints the per-source result. `--include-all-history` bypasses the
+  recency filter (see `DISCLOSURE_LOOKBACK_DAYS`).
+- `local/poll_queue.py` — the missing SQS trigger: polls the LocalStack
+  queue, reshapes each batch into the same `{"Records": [...]}` event
+  shape API Gateway/SQS would hand a real Lambda, and calls
+  `process_trade_message.handler`. Deletes only the messages that
+  succeeded (mirrors SQS's own partial-batch-failure redelivery).
+
+```bash
+docker compose up -d postgres localstack
+docker compose up -d --build workers
+docker compose exec workers python local/run_nightly_scrape.py
+docker compose exec workers python local/poll_queue.py   # leave running
+```

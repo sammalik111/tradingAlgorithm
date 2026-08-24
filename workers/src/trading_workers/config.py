@@ -25,6 +25,11 @@ class Settings(BaseSettings):
 
     aws_region: str = "us-east-1"
     trade_ingest_queue_url: str | None = None
+    # Unset in AWS (real endpoints). Local dev points this at LocalStack
+    # (see docker-compose.yml) so `sqs_client.py` never needs to know the
+    # difference -- boto3 treats endpoint_url=None as "use the real AWS
+    # endpoint" for either service.
+    aws_endpoint_url: str | None = None
 
     quiver_quant_api_key: str | None = None
 

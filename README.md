@@ -40,6 +40,28 @@ pnpm turbo run lint test          # frontend, backend, workers
 Each app also has its own env file to copy: `backend/.env.example`,
 `workers/.env.example`, `frontend/.env.example`.
 
+### Running `workers` locally (LocalStack)
+
+`workers` talks to real SQS in AWS; locally it talks to
+[LocalStack](https://localstack.cloud) instead, so the full
+scrape → enqueue → poll → canonicalize pipeline is testable without
+touching real AWS or spending anything:
+
+```bash
+docker compose up -d postgres localstack
+docker compose up -d --build workers
+
+# Scrape + enqueue (see documentation/workers.md for the free-source caveats)
+docker compose exec workers python local/run_nightly_scrape.py
+
+# In another terminal: drain the queue the same way the real SQS-triggered
+# Lambda would (leave running while you scrape)
+docker compose exec workers python local/poll_queue.py
+```
+
+See `documentation/workers.md`'s "Running locally against LocalStack"
+section for details.
+
 ## Deploying
 
 Nothing here deploys itself. `infra/` is Terraform for the full AWS stack

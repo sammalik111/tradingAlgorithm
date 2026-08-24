@@ -1,0 +1,18 @@
+# Local development only (docker-compose, against LocalStack). The
+# deployed image (workers/Dockerfile) is built on the AWS Lambda base image
+# and invoked via Lambda handlers, not usable as a long-running container.
+FROM python:3.11-slim
+
+WORKDIR /app
+
+COPY pyproject.toml ./
+COPY src ./src
+COPY local ./local
+
+RUN pip install --no-cache-dir .
+
+# No server to run -- nightly_scrape and process_trade_message are both
+# invoked on demand (Lambda handlers, not a long-running process). See
+# local/run_nightly_scrape.py and local/poll_queue.py, and
+# documentation/workers.md for usage.
+CMD ["sleep", "infinity"]
