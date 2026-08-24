@@ -7,6 +7,7 @@ from trading_workers.queue.messages import TradeIngestMessage
 from trading_workers.queue.sqs_client import enqueue_trade
 from trading_workers.scrapers import ALL_SCRAPERS
 from trading_workers.scrapers.base import RawTradeRecord
+from trading_workers.scrapers.quiver_quant import QuiverQuantNotConfiguredError
 
 logger = logging.getLogger(__name__)
 
@@ -42,6 +43,14 @@ async def run_nightly_scrape(
         source_name = scraper.source_code.value
         try:
             records = await scraper.fetch()
+        except QuiverQuantNotConfiguredError:
+            # Optional paid source with no key set -- expected, not a
+            # failure. Logged quietly so it doesn't read as a broken
+            # scraper; starts fetching automatically the moment
+            # QUIVER_QUANT_API_KEY is populated, no code change needed.
+            logger.info("scraper %s skipped: not configured", source_name)
+            results[source_name] = {"skipped": "not configured"}
+            continue
         except Exception as exc:  # noqa: BLE001 - one source failing shouldn't sink the run
             logger.warning("scraper %s failed: %s", source_name, exc)
             results[source_name] = {"error": str(exc)}

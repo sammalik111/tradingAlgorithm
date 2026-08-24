@@ -55,9 +55,12 @@ nightly volume stays bounded to genuinely recent activity while still
 catching a late-filed disclosure (STOCK Act allows up to 45 days to file).
 
 If `QuiverQuantScraper` raises `QuiverQuantNotConfiguredError` (no API
-key set), `nightly_scrape.py` logs it and continues with the free sources
-— it never blocks the run. Same for any scraper that raises for any
-reason (`nightly_scrape.py` catches per-scraper, logs, and moves on).
+key set), `nightly_scrape.py` reports it as `{"skipped": "not configured"}`
+— an expected, quiet no-op, not an error — and continues with the other
+sources. It starts fetching automatically the moment `QUIVER_QUANT_API_KEY`
+is populated; no code change needed either way. Any other scraper
+exception is a genuine failure: logged as a warning and reported as
+`{"error": ...}`, without blocking the rest of the run.
 
 **Free-source caveat (as of this writing):** both `senatestockwatcher.com`
 and `housestockwatcher.com` — and their original S3-hosted datasets — are
