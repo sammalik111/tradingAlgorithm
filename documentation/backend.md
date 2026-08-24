@@ -61,11 +61,15 @@ All routes are mounted under `/api/v1`.
 | `GET /politicians/{id}`             | One politician                                    |
 | `GET /trades`                       | Canonical (deduplicated) trades (`?ticker=`, `?politician_id=`, `?limit=`) |
 | `GET /recommendations`              | Latest recommendations (`?ticker=`, `?limit=`)    |
+| `GET /recommendations/{id}`         | One recommendation plus its scoring breakdown, supporting trades, and simulated order history |
+| `POST /recommendations/{id}/simulated-orders` | Logs a paper-trade entry against a recommendation (see "Simulated trade logging" below) |
 
 `GET /recommendations` (no `ticker` filter) is cached in Redis under
 `recommendations:latest` for `redis_cache_ttl_seconds` (default 300s),
 since it's the frontend dashboard's main query and only changes once a
-day.
+day. `GET /recommendations/{id}` is not cached: its scoring breakdown is
+recomputed on every request from the persisted supporting trades (nothing
+about the breakdown is stored — see below).
 
 ## Scoring algorithm (`algorithms/scoring.py`)
 
@@ -98,6 +102,15 @@ Bucketing (`algorithms/scoring.py`):
 `algorithms/clustering.py` computes the consensus count: it groups the
 distinct politician IDs trading a ticker by direction within the window
 and returns the size of the largest group.
+
+Only `signal_score`, `direction`, and `conviction` are persisted on the
+`Recommendation` row -- the per-trade breakdown (`recency_weight`,
+`size_weight`, `signal_contribution` per trade, plus the consensus count
+and multiplier) is not stored anywhere. `GET /recommendations/{id}`
+recomputes it on demand by re-running these same pure functions against
+the recommendation's `RecommendationSupportingTrade` rows, so it always
+reflects the current scoring logic rather than a snapshot from generation
+time.
 
 ## Recommendation engine (`recommendation_engine/engine.py`)
 
@@ -133,6 +146,17 @@ shape a future implementation must match (`get_positions()` today).
 `RobinhoodNotConfiguredError` on every call. No credential flow, no order
 placement — this repo currently only produces read-only recommendations.
 
+## Simulated trade logging (`models/simulated_order.py`)
+
+Separate from, and does not depend on, the Robinhood integration above.
+`POST /recommendations/{id}/simulated-orders` logs a paper-trade entry --
+side, quantity, and a price the caller supplies (there is no market-data
+integration in this repo, so the price is whatever the caller is
+previewing/confirming at, not a fetched quote). It never calls a real
+brokerage. This exists so the frontend can offer a full "place trade" UX
+(order preview, confirm, order history) ahead of any real account
+integration; see `documentation/frontend.md`.
+
 ## Container images
 
 Two Dockerfiles, not one:
@@ -150,7 +174,8 @@ Two Dockerfiles, not one:
 `alembic/` manages the schema (single source of truth — `workers/`'s
 mirrored models must be kept in sync manually, see
 `documentation/database-schema.md`). `alembic/versions/0001_initial_schema.py`
-creates every table. Run locally with:
+creates every table except `simulated_orders`, added in
+`0002_simulated_orders.py`. Run locally with:
 
 ```
 cd backend

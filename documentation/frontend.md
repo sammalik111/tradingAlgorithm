@@ -10,18 +10,20 @@ touching component code.
 ```
 frontend/src/
   api/
-    client.ts             apiGet<T>() fetch wrapper (base URL from VITE_API_BASE_URL)
+    client.ts             apiGet<T>()/apiPost<T>() fetch wrappers (base URL from VITE_API_BASE_URL)
     types.ts               TypeScript mirrors of the backend's Pydantic schemas
     politicians.ts, trades.ts, recommendations.ts   Typed fetch functions per resource
   hooks/
     useAsyncData.ts         Generic loading/error/data hook
-    usePoliticians.ts, useTrades.ts, useRecommendations.ts   Thin wrappers over useAsyncData
+    usePoliticians.ts, useTrades.ts, useRecommendations.ts, useRecommendationDetail.ts   Thin wrappers over useAsyncData
   components/
     Layout.tsx               Header + nav
-    RecommendationCard.tsx    One recommendation
+    RecommendationCard.tsx    One recommendation, links to its detail page
     TradeTable.tsx             Canonical trade list
+    SimulatedOrderForm.tsx      Order preview/confirm form (see below)
   pages/
     Dashboard.tsx              "/" — recommendation feed
+    RecommendationDetail.tsx    "/recommendations/:id" — scoring breakdown + simulate-trade UI
     Trades.tsx                  "/trades" — filterable trade table
   App.tsx                       Route definitions
   main.tsx                       Entry point
@@ -30,13 +32,14 @@ frontend/src/
 
 ## API layer (`src/api/`)
 
-`client.ts` exports `apiGet<T>(path, params?)`, which builds the URL from
-`VITE_API_BASE_URL` (default `http://localhost:8000/api/v1`), drops
-falsy query params, and throws `ApiError` on a non-2xx response.
-`recommendations.ts`, `trades.ts`, and `politicians.ts` each export one
-typed function per backend route (`fetchRecommendations`, `fetchTrades`,
-`fetchPoliticians`). `types.ts` is a hand-maintained mirror of the
-backend's `schemas/` — keep the two in sync when a field changes.
+`client.ts` exports `apiGet<T>(path, params?)` and `apiPost<T>(path, body)`,
+which build off `VITE_API_BASE_URL` (default `http://localhost:8000/api/v1`)
+and throw `ApiError` on a non-2xx response. `recommendations.ts`,
+`trades.ts`, and `politicians.ts` each export one typed function per
+backend route (`fetchRecommendations`, `fetchRecommendationDetail`,
+`submitSimulatedOrder`, `fetchTrades`, `fetchPoliticians`). `types.ts` is
+a hand-maintained mirror of the backend's `schemas/` — keep the two in
+sync when a field changes.
 
 ## Data hooks (`src/hooks/`)
 
@@ -44,12 +47,20 @@ backend's `schemas/` — keep the two in sync when a field changes.
 tracks `{ data, error, loading }`, and cancels stale updates if the
 component unmounts or `deps` changes again before the request resolves.
 The resource-specific hooks (`useRecommendations`, `useTrades`,
-`usePoliticians`) just bind this to one API function.
+`usePoliticians`, `useRecommendationDetail`) just bind this to one API
+function. `useRecommendationDetail(id, refreshKey)` takes an extra
+`refreshKey` so a caller can force a refetch (e.g. after logging a
+simulated order) by bumping it as a plain `useState` counter.
 
 ## Pages
 
 - **`Dashboard`** (`/`) — calls `useRecommendations()` with no ticker
   filter, renders one `RecommendationCard` per result.
+- **`RecommendationDetail`** (`/recommendations/:id`) — the scoring
+  breakdown and supporting trades from `GET /recommendations/{id}`, plus
+  `SimulatedOrderForm` for logging a paper trade and a table of past
+  simulated orders for this recommendation. No real brokerage is called;
+  see `documentation/backend.md`'s "Simulated trade logging" section.
 - **`Trades`** (`/trades`) — a ticker text input drives `useTrades({ ticker })`,
   rendered as a `TradeTable`.
 

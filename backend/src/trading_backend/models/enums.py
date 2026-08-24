@@ -30,3 +30,8 @@ class ConvictionLevel(str, enum.Enum):
     LOW = "low"
     MEDIUM = "medium"
     HIGH = "high"
+
+
+class OrderSide(str, enum.Enum):
+    BUY = "buy"
+    SELL = "sell"

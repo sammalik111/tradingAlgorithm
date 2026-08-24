@@ -2,6 +2,7 @@ export type Chamber = "house" | "senate" | "executive";
 export type TransactionType = "buy" | "sell" | "exchange";
 export type RecommendationDirection = "buy" | "sell" | "hold";
 export type ConvictionLevel = "low" | "medium" | "high";
+export type OrderSide = "buy" | "sell";
 
 export interface Politician {
   id: string;
@@ -37,4 +38,39 @@ export interface Recommendation {
   direction: RecommendationDirection;
   rationale_text: string | null;
   model_version: string;
+}
+
+export interface ScoringBreakdownTrade {
+  canonical_trade_id: string;
+  politician_name: string;
+  transaction_type: TransactionType;
+  transaction_date: string;
+  amount_mid: number;
+  recency_weight: number;
+  size_weight: number;
+  signal_contribution: number;
+}
+
+export interface ScoringBreakdown {
+  raw_total: number;
+  agreeing_politicians: number;
+  total_politicians: number;
+  consensus_multiplier: number;
+}
+
+export interface SimulatedOrder {
+  id: string;
+  recommendation_id: string;
+  ticker: string;
+  side: OrderSide;
+  quantity: number;
+  price: number;
+  notional_value: number;
+  created_at: string;
+}
+
+export interface RecommendationDetail extends Recommendation {
+  scoring_breakdown: ScoringBreakdown;
+  supporting_trades: ScoringBreakdownTrade[];
+  simulated_orders: SimulatedOrder[];
 }
