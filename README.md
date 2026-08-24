@@ -22,7 +22,8 @@ Requires Docker, pnpm, and Python 3.11+.
 
 ```bash
 pnpm install
-cd backend && pip install -e ".[dev]" && alembic upgrade head && cd ..   # once, before the first run
+cd backend && pip install -e ".[dev]" && cd ..
+pnpm migrate                        # applies migrations -- needs Postgres up first
 
 pnpm dev
 ```
@@ -30,9 +31,18 @@ pnpm dev
 `pnpm dev` brings up every `docker-compose.yml` service (Postgres, Redis,
 LocalStack, backend API on `:8000`, `workers`) via `docker compose up
 --build`, and the frontend's Vite dev server on `:3000`, in one terminal
-with merged/labeled output (`concurrently` — Ctrl+C stops both). The
-`alembic upgrade head` step only needs to run once against a fresh
-Postgres volume, same as running the backend any other way.
+with merged/labeled output (`concurrently` — Ctrl+C stops both). `pnpm
+migrate` only needs to run once against a fresh Postgres volume (start it
+with `docker compose up -d postgres` first if `pnpm dev` isn't already
+running), same as running the backend any other way.
+
+- `pnpm migrate` — `alembic upgrade head` against whatever `DATABASE_URL`
+  resolves to (needs `backend`'s Python deps installed, same as above).
+- `pnpm migrate:gen -m "add foo column"` — generates a new migration with
+  the next sequential revision id and commits it (see
+  `documentation/backend.md`). Fill in `upgrade()`/`downgrade()` before
+  running `pnpm migrate` — this repo hand-writes migration bodies, it
+  doesn't `--autogenerate` them.
 
 To run pieces individually instead (e.g. you don't need the frontend, or
 want backend logs separate from everything else), start services by name:
