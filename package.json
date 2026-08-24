@@ -16,7 +16,12 @@
     "format": "prettier --write \"**/*.{ts,tsx,md,json,yml,yaml}\"",
     "format:check": "prettier --check \"**/*.{ts,tsx,md,json,yml,yaml}\"",
     "migrate": "pnpm --filter backend migrate",
-    "migrate:gen": "pnpm --filter backend migrate:gen"
+    "migrate:gen": "pnpm --filter backend migrate:gen",
+    "deploy": "aws codepipeline start-pipeline-execution --region us-east-1 --name trading-platform-prod-deploy",
+    "deploy:status": "aws codepipeline get-pipeline-state --region us-east-1 --name trading-platform-prod-deploy",
+    "infra:plan": "terraform -chdir=infra/environments/prod plan",
+    "infra:apply": "terraform -chdir=infra/environments/prod apply",
+    "infra:output": "terraform -chdir=infra/environments/prod output"
   },
   "lint-staged": {
     "*.{ts,tsx,md,json,yml,yaml}": "prettier --write"
