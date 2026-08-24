@@ -54,15 +54,15 @@ fields:
 
 All routes are mounted under `/api/v1`.
 
-| Route                              | Returns                                          |
-| ----------------------------------- | ------------------------------------------------- |
-| `GET /health`                       | `{"status": "ok"}`                                |
-| `GET /politicians`                  | Tracked politicians (`?active_only=`)             |
-| `GET /politicians/{id}`             | One politician                                    |
-| `GET /trades`                       | Canonical (deduplicated) trades (`?ticker=`, `?politician_id=`, `?limit=`) |
-| `GET /recommendations`              | Latest recommendations (`?ticker=`, `?limit=`)    |
-| `GET /recommendations/{id}`         | One recommendation plus its scoring breakdown, supporting trades, and simulated order history |
-| `POST /recommendations/{id}/simulated-orders` | Logs a paper-trade entry against a recommendation (see "Simulated trade logging" below) |
+| Route                                         | Returns                                                                                       |
+| --------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| `GET /health`                                 | `{"status": "ok"}`                                                                            |
+| `GET /politicians`                            | Tracked politicians (`?active_only=`)                                                         |
+| `GET /politicians/{id}`                       | One politician                                                                                |
+| `GET /trades`                                 | Canonical (deduplicated) trades (`?ticker=`, `?politician_id=`, `?limit=`)                    |
+| `GET /recommendations`                        | Latest recommendations (`?ticker=`, `?limit=`)                                                |
+| `GET /recommendations/{id}`                   | One recommendation plus its scoring breakdown, supporting trades, and simulated order history |
+| `POST /recommendations/{id}/simulated-orders` | Logs a paper-trade entry against a recommendation (see "Simulated trade logging" below)       |
 
 `GET /recommendations` (no `ticker` filter) is cached in Redis under
 `recommendations:latest` for `redis_cache_ttl_seconds` (default 300s),
@@ -175,13 +175,26 @@ Two Dockerfiles, not one:
 mirrored models must be kept in sync manually, see
 `documentation/database-schema.md`). `alembic/versions/0001_initial_schema.py`
 creates every table except `simulated_orders`, added in
-`0002_simulated_orders.py`. Run locally with:
+`0002_simulated_orders.py`. Migration bodies are hand-written, not
+`--autogenerate`d (see `0001`'s enum-handling comments for why — the
+usual reason a generated migration would need hand-fixing anyway), and
+use sequential revision ids (`"0001"`, `"0002"`, ...) rather than
+Alembic's default random hash.
 
-```
-cd backend
-alembic upgrade head
-```
+Run locally with the root `package.json` scripts (need `backend`'s Python
+deps installed first — see the root README):
 
-In AWS, this runs as part of the weekly CodePipeline build
-(`infra/codebuild/buildspec.yml`), not on every deploy of application code
-alone.
+- `pnpm migrate` — `alembic upgrade head`.
+- `pnpm migrate:gen -m "add foo column"` — `scripts/new_migration.py`
+  wraps `alembic revision` to fill in `--rev-id` with the next sequential
+  number (computed from the highest existing `alembic/versions/NNNN_*.py`
+  file) and `ruff format`s the result so it matches this repo's
+  double-quoted style instead of the mako template's default `repr()`
+  output, then `git add`s and `git commit`s just that one file. The
+  generated `upgrade()`/`downgrade()` are empty (`pass`) — fill in the
+  real schema change and let CI/`pnpm lint` catch the now-unused
+  `sa`/`op` imports if you don't end up needing them.
+
+In AWS, `alembic upgrade head` runs as part of the weekly CodePipeline
+build (`infra/codebuild/buildspec.yml`), not on every deploy of
+application code alone.

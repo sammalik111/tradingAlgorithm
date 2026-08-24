@@ -14,7 +14,9 @@
     "test": "turbo run test",
     "typecheck": "turbo run typecheck",
     "format": "prettier --write \"**/*.{ts,tsx,md,json,yml,yaml}\"",
-    "format:check": "prettier --check \"**/*.{ts,tsx,md,json,yml,yaml}\""
+    "format:check": "prettier --check \"**/*.{ts,tsx,md,json,yml,yaml}\"",
+    "migrate": "pnpm --filter backend migrate",
+    "migrate:gen": "pnpm --filter backend migrate:gen"
   },
   "lint-staged": {
     "*.{ts,tsx,md,json,yml,yaml}": "prettier --write"
