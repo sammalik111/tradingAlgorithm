@@ -8,3 +8,10 @@ deploy_branch = "main"
 # Fill in after the first apply, then re-apply to lock CORS down to the
 # real CloudFront domain instead of the auto-derived default.
 frontend_cors_origins = []
+
+# Optional: enables SSH access to the DB bastion (e.g. for Navicat's
+# built-in SSH-tunnel connection mode) in addition to the always-available
+# SSM path. Leave both unset for SSM-only (no open ports). Set both
+# together to enable -- see documentation/infra.md.
+# bastion_ssh_public_key   = "ssh-ed25519 AAAA... you@yourhost"   # cat ~/.ssh/id_ed25519.pub
+# bastion_allowed_ssh_cidr = "203.0.113.5/32"                      # curl -s ifconfig.me, then /32
