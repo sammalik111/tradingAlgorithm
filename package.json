@@ -7,6 +7,7 @@
     "node": ">=20"
   },
   "scripts": {
+    "prepare": "husky",
     "build": "turbo run build",
     "dev": "concurrently -n docker,frontend -c blue,green -k \"docker compose up --build\" \"pnpm --filter frontend dev\"",
     "lint": "turbo run lint",
@@ -15,8 +16,13 @@
     "format": "prettier --write \"**/*.{ts,tsx,md,json,yml,yaml}\"",
     "format:check": "prettier --check \"**/*.{ts,tsx,md,json,yml,yaml}\""
   },
+  "lint-staged": {
+    "*.{ts,tsx,md,json,yml,yaml}": "prettier --write"
+  },
   "devDependencies": {
     "concurrently": "^10.0.5",
+    "husky": "^9.1.7",
+    "lint-staged": "^17.3.0",
     "prettier": "^3.3.3",
     "turbo": "^2.1.3"
   }
