@@ -32,6 +32,8 @@ override.tf.json
 *_override.tf
 *_override.tf.json
 .terraform.lock.hcl
+*.tfvars
+!*.tfvars.example
 
 # Env / secrets
 .env

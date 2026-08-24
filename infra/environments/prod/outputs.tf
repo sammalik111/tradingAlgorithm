@@ -40,3 +40,8 @@ output "db_bastion_instance_id" {
   description = "For 'aws ssm start-session --target <id> ...' -- see documentation/infra.md"
   value       = module.db_bastion.instance_id
 }
+
+output "db_bastion_ssh_public_ip" {
+  description = "Set only when bastion_ssh_public_key/bastion_allowed_ssh_cidr are configured. Elastic IP, stable across restarts -- see documentation/infra.md"
+  value       = module.db_bastion.ssh_public_ip
+}

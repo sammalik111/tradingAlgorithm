@@ -20,8 +20,11 @@ module "db_bastion" {
   project                  = var.project
   environment              = var.environment
   vpc_id                   = module.networking.vpc_id
-  subnet_id                = module.networking.private_subnet_ids[0]
+  private_subnet_id        = module.networking.private_subnet_ids[0]
+  public_subnet_id         = module.networking.public_subnet_ids[0]
   aurora_security_group_id = module.networking.aurora_security_group_id
+  ssh_public_key           = var.bastion_ssh_public_key
+  allowed_ssh_cidr         = var.bastion_allowed_ssh_cidr
 }
 
 module "redis" {
