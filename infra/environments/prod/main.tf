@@ -14,6 +14,16 @@ module "aurora" {
   security_group_id  = module.networking.aurora_security_group_id
 }
 
+module "db_bastion" {
+  source = "../../modules/bastion"
+
+  project                  = var.project
+  environment              = var.environment
+  vpc_id                   = module.networking.vpc_id
+  subnet_id                = module.networking.private_subnet_ids[0]
+  aurora_security_group_id = module.networking.aurora_security_group_id
+}
+
 module "redis" {
   source = "../../modules/redis"
 

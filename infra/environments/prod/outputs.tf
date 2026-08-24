@@ -30,3 +30,13 @@ output "deploy_pipeline_name" {
 output "aurora_cluster_endpoint" {
   value = module.aurora.cluster_endpoint
 }
+
+output "aurora_master_secret_arn" {
+  description = "Secrets Manager ARN holding the RDS-managed master password -- see documentation/infra.md"
+  value       = module.aurora.master_user_secret_arn
+}
+
+output "db_bastion_instance_id" {
+  description = "For 'aws ssm start-session --target <id> ...' -- see documentation/infra.md"
+  value       = module.db_bastion.instance_id
+}
