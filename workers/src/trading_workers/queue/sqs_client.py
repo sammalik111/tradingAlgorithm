@@ -12,7 +12,12 @@ class TradeQueueNotConfiguredError(RuntimeError):
 
 @lru_cache
 def get_sqs_client():
-    return boto3.client("sqs", region_name=get_settings().aws_region)
+    settings = get_settings()
+    return boto3.client(
+        "sqs",
+        region_name=settings.aws_region,
+        endpoint_url=settings.aws_endpoint_url,
+    )
 
 
 def enqueue_trade(message: TradeIngestMessage) -> None:

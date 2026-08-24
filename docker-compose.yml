@@ -36,5 +36,43 @@ services:
       redis:
         condition: service_started
 
+  # Emulates SQS locally so `workers` can run its full scrape -> enqueue ->
+  # poll -> canonicalize pipeline without touching real AWS. See
+  # documentation/workers.md for the local workflow.
+  localstack:
+    image: localstack/localstack:3.8
+    environment:
+      SERVICES: sqs
+      DEFAULT_REGION: us-east-1
+    ports:
+      - "4566:4566"
+    volumes:
+      - "./workers/local/localstack_init.sh:/etc/localstack/init/ready.d/init.sh"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4566/_localstack/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # No long-running process (nightly_scrape/process_trade_message are both
+  # Lambda handlers, invoked on demand, not a server) -- exec into it to
+  # run local/run_nightly_scrape.py or local/poll_queue.py.
+  workers:
+    build:
+      context: ./workers
+      dockerfile: Dockerfile.dev
+    environment:
+      DATABASE_URL: postgresql+asyncpg://trading:trading@postgres:5432/trading
+      AWS_REGION: us-east-1
+      AWS_ENDPOINT_URL: http://localstack:4566
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+      TRADE_INGEST_QUEUE_URL: http://localstack:4566/000000000000/trade-ingest
+    depends_on:
+      postgres:
+        condition: service_healthy
+      localstack:
+        condition: service_healthy
+
 volumes:
   postgres-data:
