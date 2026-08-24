@@ -19,9 +19,10 @@ workers/src/trading_workers/
     base.py                     RawTradeRecord dataclass + Scraper protocol
     amount_ranges.py             Parses "$1,001 - $15,000" style strings
     transaction_types.py         Maps free-text type → TransactionType enum
-    senate_stock_watcher.py       Free source, no API key
-    house_stock_watcher.py        Free source, no API key
-    quiver_quant.py                Paid source, gated on QUIVER_QUANT_API_KEY
+    senate_efd.py                 Free source, no API key -- live, run by ALL_SCRAPERS
+    senate_stock_watcher.py        Free source, no API key -- historical only, not run by default
+    house_stock_watcher.py          Free source, no API key -- dead upstream, kept for when it isn't
+    quiver_quant.py                   Paid source, gated on QUIVER_QUANT_API_KEY
   ingest/
     name_normalization.py         Collapses name variants to one lookup key
     politician_resolver.py         Get-or-create Politician by normalized name
@@ -42,17 +43,19 @@ Each scraper implements `async fetch() -> list[RawTradeRecord]` and
 declares a `source_code`. `scrapers/__init__.py:ALL_SCRAPERS` lists every
 scraper the nightly job runs.
 
-| Scraper                    | Source                                                        | Auth |
-| --------------------------- | --------------------------------------------------------------- | ---- |
-| `SenateStockWatcherScraper` | `raw.githubusercontent.com/timothycarambat/senate-stock-watcher-data` (see caveat below) | none |
-| `HouseStockWatcherScraper`  | `house-stock-watcher-data.s3-us-west-2.amazonaws.com` (**dead** — see caveat below) | none |
-| `QuiverQuantScraper`        | `api.quiverquant.com/beta/live/congresstrading`                  | `QUIVER_QUANT_API_KEY` |
+| Scraper                     | Source                                                                                                                                              | Auth                   |
+| --------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------- |
+| `SenateEfdScraper`          | `efdsearch.senate.gov` — the Senate's own official disclosure search                                                                                | none                   |
+| `HouseStockWatcherScraper`  | `house-stock-watcher-data.s3-us-west-2.amazonaws.com` (**dead** — see caveat below)                                                                 | none                   |
+| `QuiverQuantScraper`        | `api.quiverquant.com/beta/live/congresstrading`                                                                                                     | `QUIVER_QUANT_API_KEY` |
+| `SenateStockWatcherScraper` | `raw.githubusercontent.com/timothycarambat/senate-stock-watcher-data` — **not in `ALL_SCRAPERS`**, historical-backfill tool only (see caveat below) | none                   |
 
-Both watcher datasets are (or were) the **entire historical dataset**, not
-a daily delta — `jobs/nightly_scrape.py` filters to `disclosure_date`
-within the last 45 days (`DISCLOSURE_LOOKBACK_DAYS`) before enqueueing, so
-nightly volume stays bounded to genuinely recent activity while still
-catching a late-filed disclosure (STOCK Act allows up to 45 days to file).
+`jobs/nightly_scrape.py` filters to `disclosure_date` within the last 45
+days (`DISCLOSURE_LOOKBACK_DAYS`) before enqueueing, on top of whatever
+each scraper itself asks its source for — a backstop against a source
+that (like `HouseStockWatcherScraper`, when its dead source is reachable
+at all) republishes its _entire_ history every time, not just new
+disclosures.
 
 If `QuiverQuantScraper` raises `QuiverQuantNotConfiguredError` (no API
 key set), `nightly_scrape.py` reports it as `{"skipped": "not configured"}`
@@ -62,28 +65,50 @@ is populated; no code change needed either way. Any other scraper
 exception is a genuine failure: logged as a warning and reported as
 `{"error": ...}`, without blocking the rest of the run.
 
+**`SenateEfdScraper` (`scrapers/senate_efd.py`)** — pulls Periodic
+Transaction Report filings directly from the Senate's own
+`efdsearch.senate.gov`, the authoritative source every third-party mirror
+(including the now-dead senatestockwatcher.com) itself ultimately
+scraped. Genuinely live, no API key. The site requires a small session
+dance before it'll serve search results: `GET` the landing page to pull a
+`csrfmiddlewaretoken`, `POST` back to accept a one-time terms-of-use
+agreement (this is what sets the session cookie a browser gets from
+checking "I agree"), then `POST` to its DataTables-backed search endpoint
+(`report_types=[11]`, the site's own undocumented-but-consistently-observed
+code for "Periodic Transaction Report") with a `submitted_start_date` set
+from `LOOKBACK_DAYS`, so only recent filings are requested in the first
+place rather than pulling full history and filtering client-side. Each
+result row links to that filing's own HTML page (or, for paper-filed/
+scanned reports, a PDF under `/search/view/paper/` — skipped, no
+machine-readable data there), fetched and parsed for its transaction
+table (bounded to 5 concurrent fetches — a courtesy to a government
+server, not a rate limit imposed by the site). This scraper's HTTP flow
+and response-shape assumptions are modeled on a known-working open-source
+scraper of the same site, and are covered by `tests/test_senate_efd_scraper.py`
+against realistic mocked responses — but unlike `senate_stock_watcher.py`'s
+fix, this one has **not** been verified against the live site itself (it
+returns a hard network error, not just a 403, from every environment this
+was developed in). Confirm it with a real `aws lambda invoke` against
+`nightly-scrape` before trusting its output.
+
 **Free-source caveat (as of this writing):** both `senatestockwatcher.com`
 and `housestockwatcher.com` — and their original S3-hosted datasets — are
 dead (the domains no longer resolve; the S3 buckets return `AccessDenied`
-to anonymous requests even when reachable directly). `SenateStockWatcherScraper`
-now pulls from a GitHub-hosted mirror of the same underlying data instead,
-but that mirror itself hasn't been updated since **March 2021** — it's
-alive and returns valid JSON, but every disclosure in it is 5+ years
-stale, so the normal 45-day recency filter drops all of it on a real
-nightly run. No free replacement was found for House data at all. To
-seed the pipeline with this historical Senate data anyway (for testing
-the recommendation engine / frontend end-to-end, not for real trading
-signal), invoke `nightly-scrape` with `{"include_all_history": true}` —
-see `jobs/nightly_scrape.py`'s `run_nightly_scrape`. A genuinely live free
-replacement would mean scraping the actual government sources directly
-(`efdsearch.senate.gov`, `disclosures-clerk.house.gov`) — real engineering,
-not implemented here.
-
-One more quirk of the GitHub mirror: roughly 80% of its `ticker` fields
-arrive as an HTML anchor tag (e.g. `<a href="...">PENN</a>`) rather than
-plain text — `senate_stock_watcher.py`'s `_strip_html` strips markup from
-both `ticker` and `asset_description` before use. Confirmed against the
-live data, not a hypothetical edge case.
+to anonymous requests even when reachable directly). No free replacement
+was found for House data — `disclosures-clerk.house.gov` exists but PTRs
+there are scanned PDFs, needing real OCR/PDF-text-extraction work not
+attempted here. `SenateStockWatcherScraper` still pulls from a
+GitHub-hosted mirror of the old senatestockwatcher.com dataset, frozen
+since **March 2021** — real data, just 5+ years stale, and no longer run
+automatically (removed from `ALL_SCRAPERS` once `SenateEfdScraper`
+replaced it as the real Senate source). It's still directly importable
+for a one-off historical backfill via `nightly-scrape`'s
+`{"include_all_history": true}` payload if that's ever useful again — see
+`jobs/nightly_scrape.py`'s `run_nightly_scrape`. Roughly 80% of that
+mirror's `ticker` fields arrive as an HTML anchor tag (e.g.
+`<a href="...">PENN</a>`) rather than plain text; `_strip_html` handles
+it. Confirmed against the live data when this was built, not a
+hypothetical edge case.
 
 ## Ingest pipeline (`ingest/`)
 
@@ -152,7 +177,7 @@ whole pipeline by hand against [LocalStack](https://localstack.cloud)
   LocalStack container, plus a `TRADE_INGEST_QUEUE_URL` that matches the
   queue the init script creates, and dummy `AWS_ACCESS_KEY_ID`/
   `AWS_SECRET_ACCESS_KEY` (LocalStack doesn't validate these, but boto3
-  requires *something* be set). It has no long-running process — `exec`
+  requires _something_ be set). It has no long-running process — `exec`
   into it to run the scripts below.
 - `local/run_nightly_scrape.py` — calls `nightly_scrape.handler` directly
   and prints the per-source result. `--include-all-history` bypasses the

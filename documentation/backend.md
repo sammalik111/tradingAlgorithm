@@ -175,7 +175,9 @@ Two Dockerfiles, not one:
 mirrored models must be kept in sync manually, see
 `documentation/database-schema.md`). `alembic/versions/0001_initial_schema.py`
 creates every table except `simulated_orders`, added in
-`0002_simulated_orders.py`. Migration bodies are hand-written, not
+`0002_simulated_orders.py`; `0003_add_senate_efd_source_code.py` adds the
+`senate_efd` value to the `source_code` enum for `workers/scrapers/senate_efd.py`.
+Migration bodies are hand-written, not
 `--autogenerate`d (see `0001`'s enum-handling comments for why — the
 usual reason a generated migration would need hand-fixing anyway), and
 use sequential revision ids (`"0001"`, `"0002"`, ...) rather than
