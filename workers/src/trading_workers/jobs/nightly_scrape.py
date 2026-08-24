@@ -11,9 +11,12 @@ from trading_workers.scrapers.quiver_quant import QuiverQuantNotConfiguredError
 
 logger = logging.getLogger(__name__)
 
-# senatestockwatcher.com / housestockwatcher.com republish the *entire*
-# historical dataset every time, not just new disclosures. We only care
-# about recently disclosed trades, and the STOCK Act gives filers up to 45
+# housestockwatcher.com (when it's reachable at all -- see
+# HouseStockWatcherScraper) republishes its *entire* historical dataset
+# every time, not just new disclosures; SenateEfdScraper asks the source
+# for only-recent filings directly instead (see its own LOOKBACK_DAYS),
+# so this filter is mostly a backstop for it. We only care about recently
+# disclosed trades either way, and the STOCK Act gives filers up to 45
 # days to disclose, so this window is wide enough to still catch a
 # late-filed trade without re-enqueueing years of history every night.
 DISCLOSURE_LOOKBACK_DAYS = 45
@@ -32,9 +35,10 @@ async def run_nightly_scrape(
 
     `include_all_history=True` skips the recency filter entirely and
     enqueues everything a scraper returns, regardless of disclosure date.
-    Meant for a one-off manual backfill (e.g. `SenateStockWatcherScraper`'s
-    current mirror only has historical data -- see its module docstring),
-    not for the real nightly schedule.
+    Meant for a one-off manual backfill of a scraper that returns full
+    history rather than just-recent filings (e.g.
+    `HouseStockWatcherScraper`, when its source is reachable at all -- see
+    its module docstring), not for the real nightly schedule.
     """
     cutoff = ((as_of or datetime.now(UTC)) - timedelta(days=DISCLOSURE_LOOKBACK_DAYS)).date()
 

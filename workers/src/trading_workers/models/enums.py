@@ -18,3 +18,4 @@ class SourceCode(str, enum.Enum):
     HOUSE_STOCK_WATCHER = "house_stock_watcher"
     QUIVER_QUANT = "quiver_quant"
     SEC_EDGAR = "sec_edgar"
+    SENATE_EFD = "senate_efd"

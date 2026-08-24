@@ -24,10 +24,15 @@ def _strip_html(raw: str) -> str:
 # now returns AccessDenied to anonymous requests. This points at a
 # GitHub-hosted mirror of the same underlying dataset instead -- still free,
 # no API key -- but as of this writing that mirror hasn't been updated
-# since March 2021, so `fetch()` currently returns historical, not current,
-# disclosures. `jobs/nightly_scrape.py`'s recency filter will (correctly)
-# drop all of it on a normal run; pass `include_all_history=True` to that
-# job to backfill it anyway. See documentation/workers.md.
+# since March 2021, so `fetch()` returns historical, not current,
+# disclosures.
+#
+# senate_efd.SenateEfdScraper (pulling directly from the Senate's own
+# efdsearch.senate.gov) is the live replacement and is what
+# scrapers/__init__.py:ALL_SCRAPERS actually runs now -- this scraper is
+# no longer in that list, so `include_all_history` no longer reaches it.
+# Kept around, importable directly, purely as a one-off historical-backfill
+# tool if that's ever useful again. See documentation/workers.md.
 DATA_URL = (
     "https://raw.githubusercontent.com/timothycarambat/senate-stock-watcher-data/"
     "master/aggregate/all_daily_summaries.json"
