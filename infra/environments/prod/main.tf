@@ -91,7 +91,10 @@ module "backend_api_lambda" {
   ]
 
   environment_variables = merge(local.shared_lambda_env, {
-    REDIS_URL            = "redis://${module.redis.endpoint_address}:${module.redis.endpoint_port}/0"
+    # rediss:// (TLS), not redis:// -- ElastiCache Serverless enforces
+    # in-transit encryption unconditionally; there's no opt-out, so a
+    # plaintext client connection fails outright.
+    REDIS_URL            = "rediss://${module.redis.endpoint_address}:${module.redis.endpoint_port}/0"
     CORS_ALLOWED_ORIGINS = join(",", local.cors_origins)
   })
 }
@@ -118,7 +121,7 @@ module "recommendation_engine_lambda" {
   ]
 
   environment_variables = merge(local.shared_lambda_env, {
-    REDIS_URL = "redis://${module.redis.endpoint_address}:${module.redis.endpoint_port}/0"
+    REDIS_URL = "rediss://${module.redis.endpoint_address}:${module.redis.endpoint_port}/0"
   })
 }
 
