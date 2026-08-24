@@ -5,6 +5,7 @@ import trading_workers.jobs.nightly_scrape as nightly_scrape
 from trading_workers.models.enums import Chamber, SourceCode, TransactionType
 from trading_workers.queue.messages import TradeIngestMessage
 from trading_workers.scrapers.base import RawTradeRecord
+from trading_workers.scrapers.quiver_quant import QuiverQuantNotConfiguredError
 
 RECENT_RECORD = RawTradeRecord(
     politician_full_name="Nancy Pelosi",
@@ -52,3 +53,19 @@ async def test_include_all_history_bypasses_the_recency_filter(monkeypatch):
 
     assert len(enqueued) == 2
     assert results["house_stock_watcher"] == {"fetched": 2, "enqueued": 2}
+
+
+class _UnconfiguredScraper:
+    source_code = SourceCode.QUIVER_QUANT
+
+    async def fetch(self) -> list[RawTradeRecord]:
+        raise QuiverQuantNotConfiguredError("QUIVER_QUANT_API_KEY is not set")
+
+
+async def test_unconfigured_optional_scraper_is_reported_as_skipped_not_error(monkeypatch):
+    monkeypatch.setattr(nightly_scrape, "ALL_SCRAPERS", [_UnconfiguredScraper()])
+    monkeypatch.setattr(nightly_scrape, "enqueue_trade", lambda *_: None)
+
+    results = await nightly_scrape.run_nightly_scrape(as_of=datetime(2026, 8, 15, tzinfo=UTC))
+
+    assert results["quiver_quant"] == {"skipped": "not configured"}
