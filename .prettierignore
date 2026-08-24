@@ -1,0 +1,4 @@
+# Written by pnpm itself; prettier reformatting it (quote style, blank
+# lines) just fights pnpm's own writer on every install, causing pointless
+# diff churn on every commit that touches a package.json.
+pnpm-lock.yaml

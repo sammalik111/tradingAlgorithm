@@ -48,6 +48,12 @@ pnpm turbo run lint test          # frontend, backend, workers
 Each app also has its own env file to copy: `backend/.env.example`,
 `workers/.env.example`, `frontend/.env.example`.
 
+A `pnpm install` also sets up a git pre-commit hook (husky + lint-staged)
+that runs `prettier --write` on staged `.ts`/`.tsx`/`.md`/`.json`/`.yml`
+files, so formatting drift never reaches a commit in the first place —
+`pnpm format`/`pnpm format:check` cover the whole tree on demand instead
+of just staged files.
+
 ### Running `workers` locally (LocalStack)
 
 `workers` talks to real SQS in AWS; locally it talks to
