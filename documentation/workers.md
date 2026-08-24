@@ -44,19 +44,43 @@ scraper the nightly job runs.
 
 | Scraper                    | Source                                                        | Auth |
 | --------------------------- | --------------------------------------------------------------- | ---- |
-| `SenateStockWatcherScraper` | `senate-stock-watcher-data.s3-us-west-2.amazonaws.com` (full Senate STOCK Act dataset) | none |
-| `HouseStockWatcherScraper`  | `house-stock-watcher-data.s3-us-west-2.amazonaws.com` (full House STOCK Act dataset)  | none |
+| `SenateStockWatcherScraper` | `raw.githubusercontent.com/timothycarambat/senate-stock-watcher-data` (see caveat below) | none |
+| `HouseStockWatcherScraper`  | `house-stock-watcher-data.s3-us-west-2.amazonaws.com` (**dead** — see caveat below) | none |
 | `QuiverQuantScraper`        | `api.quiverquant.com/beta/live/congresstrading`                  | `QUIVER_QUANT_API_KEY` |
 
-Both watcher datasets are the **entire historical dataset**, not a daily
-delta — `jobs/nightly_scrape.py` filters to `disclosure_date` within the
-last 45 days (`DISCLOSURE_LOOKBACK_DAYS`) before enqueueing, so nightly
-volume stays bounded to genuinely recent activity while still catching a
-late-filed disclosure (STOCK Act allows up to 45 days to file).
+Both watcher datasets are (or were) the **entire historical dataset**, not
+a daily delta — `jobs/nightly_scrape.py` filters to `disclosure_date`
+within the last 45 days (`DISCLOSURE_LOOKBACK_DAYS`) before enqueueing, so
+nightly volume stays bounded to genuinely recent activity while still
+catching a late-filed disclosure (STOCK Act allows up to 45 days to file).
 
 If `QuiverQuantScraper` raises `QuiverQuantNotConfiguredError` (no API
 key set), `nightly_scrape.py` logs it and continues with the free sources
-— it never blocks the run.
+— it never blocks the run. Same for any scraper that raises for any
+reason (`nightly_scrape.py` catches per-scraper, logs, and moves on).
+
+**Free-source caveat (as of this writing):** both `senatestockwatcher.com`
+and `housestockwatcher.com` — and their original S3-hosted datasets — are
+dead (the domains no longer resolve; the S3 buckets return `AccessDenied`
+to anonymous requests even when reachable directly). `SenateStockWatcherScraper`
+now pulls from a GitHub-hosted mirror of the same underlying data instead,
+but that mirror itself hasn't been updated since **March 2021** — it's
+alive and returns valid JSON, but every disclosure in it is 5+ years
+stale, so the normal 45-day recency filter drops all of it on a real
+nightly run. No free replacement was found for House data at all. To
+seed the pipeline with this historical Senate data anyway (for testing
+the recommendation engine / frontend end-to-end, not for real trading
+signal), invoke `nightly-scrape` with `{"include_all_history": true}` —
+see `jobs/nightly_scrape.py`'s `run_nightly_scrape`. A genuinely live free
+replacement would mean scraping the actual government sources directly
+(`efdsearch.senate.gov`, `disclosures-clerk.house.gov`) — real engineering,
+not implemented here.
+
+One more quirk of the GitHub mirror: roughly 80% of its `ticker` fields
+arrive as an HTML anchor tag (e.g. `<a href="...">PENN</a>`) rather than
+plain text — `senate_stock_watcher.py`'s `_strip_html` strips markup from
+both `ticker` and `asset_description` before use. Confirmed against the
+live data, not a hypothetical edge case.
 
 ## Ingest pipeline (`ingest/`)
 
