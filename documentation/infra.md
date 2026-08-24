@@ -10,6 +10,7 @@ that's a manual step (see "Applying" below).
 | -------------------- | ------------------------------------------------------------------------------------------------ |
 | `networking`          | VPC, 2 public + 2 private subnets, 1 NAT Gateway, security groups for Lambda/Aurora/Redis           |
 | `aurora`               | Aurora Serverless v2 (PostgreSQL), 0.5–2 ACU, single instance, RDS-managed master password           |
+| `bastion`              | Minimal EC2 instance for reaching Aurora from a local DB client via SSM (Aurora itself stays fully private) |
 | `redis`                 | ElastiCache Serverless (Redis) — pay-per-use, no always-on node                                       |
 | `sqs`                     | `trade-ingest` queue + dead-letter queue                                                                |
 | `ecr`                       | Container image repositories for `backend` and `workers`                                                  |
@@ -67,6 +68,41 @@ was worth the extra cost here.
     --secret-id trading-platform/prod/anthropic-api-key \
     --secret-string "sk-ant-..."
   ```
+
+## Connecting to Aurora from a local DB client (Navicat, psql, TablePlus, ...)
+
+Aurora has no path in from the internet at all — no public subnet, no
+`publicly_accessible`, and its security group only allows the Lambda,
+CodeBuild, and `bastion` module's security groups on 5432. The `bastion`
+module (an EC2 instance reached only via SSM Session Manager, no open
+inbound ports, no SSH key) exists specifically to make a local connection
+possible without changing any of that.
+
+1. Requires the Session Manager plugin locally once:
+   `brew install --cask session-manager-plugin` (macOS) — see AWS's docs
+   for other platforms.
+2. Get the master password (rotated/managed by RDS, never in Terraform
+   state or a Lambda env var):
+   ```
+   aws secretsmanager get-secret-value \
+     --secret-id $(terraform output -raw aurora_master_secret_arn) \
+     --query SecretString --output text | jq -r .password
+   ```
+3. Open the tunnel (leave this running in a terminal):
+   ```
+   aws ssm start-session \
+     --target $(terraform output -raw db_bastion_instance_id) \
+     --document-name AWS-StartPortForwardingSessionToRemoteHost \
+     --parameters '{"host":["'"$(terraform output -raw aurora_cluster_endpoint)"'"],"portNumber":["5432"],"localPortNumber":["5433"]}'
+   ```
+4. In Navicat, create a PostgreSQL connection to `localhost:5433`,
+   database `trading`, user `trading_admin`, password from step 2. Leave
+   it as a plain (non-SSH-tunnel) connection in Navicat — the SSM tunnel
+   from step 3 already terminates locally on 5433, so nothing further to
+   configure on Navicat's end.
+
+Close the terminal from step 3 (or Ctrl+C) to end the tunnel; nothing
+about the bastion needs to keep running between sessions.
 
 ## Weekly deploy pipeline (`codepipeline` module)
 
