@@ -22,10 +22,18 @@ def _is_recent(record: RawTradeRecord, cutoff: date) -> bool:
     return record.disclosure_date >= cutoff
 
 
-async def run_nightly_scrape(as_of: datetime | None = None) -> dict[str, Any]:
+async def run_nightly_scrape(
+    as_of: datetime | None = None, include_all_history: bool = False
+) -> dict[str, Any]:
     """Fetch every configured source, filter to recently disclosed trades,
     and enqueue each onto the SQS ingest queue for `process_trade_message`
     to canonicalize.
+
+    `include_all_history=True` skips the recency filter entirely and
+    enqueues everything a scraper returns, regardless of disclosure date.
+    Meant for a one-off manual backfill (e.g. `SenateStockWatcherScraper`'s
+    current mirror only has historical data -- see its module docstring),
+    not for the real nightly schedule.
     """
     cutoff = ((as_of or datetime.now(UTC)) - timedelta(days=DISCLOSURE_LOOKBACK_DAYS)).date()
 
@@ -39,17 +47,22 @@ async def run_nightly_scrape(as_of: datetime | None = None) -> dict[str, Any]:
             results[source_name] = {"error": str(exc)}
             continue
 
-        recent_records = [r for r in records if _is_recent(r, cutoff)]
-        for record in recent_records:
+        surviving_records = (
+            records if include_all_history else [r for r in records if _is_recent(r, cutoff)]
+        )
+        for record in surviving_records:
             enqueue_trade(TradeIngestMessage.from_record(record))
 
-        results[source_name] = {"fetched": len(records), "enqueued": len(recent_records)}
+        results[source_name] = {"fetched": len(records), "enqueued": len(surviving_records)}
 
     return results
 
 
 def handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
     """EventBridge Scheduler entrypoint, invoked nightly (see
-    infra/modules/eventbridge).
+    infra/modules/eventbridge). `event["include_all_history"]` is only
+    meaningful on a manual `aws lambda invoke` for a one-off backfill --
+    the EventBridge schedule always invokes with an empty payload.
     """
-    return asyncio.run(run_nightly_scrape())
+    include_all_history = bool(event.get("include_all_history", False))
+    return asyncio.run(run_nightly_scrape(include_all_history=include_all_history))
