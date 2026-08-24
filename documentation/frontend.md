@@ -66,7 +66,9 @@ simulated order) by bumping it as a plain `useState` counter.
 
 ## Build/test tooling
 
-- `pnpm dev` — Vite dev server on port 5173.
+- `pnpm dev` (this package) — Vite dev server on port 3000. The root
+  `pnpm dev` (see root `package.json`) runs this alongside
+  `docker compose up --build` for the full local stack in one command.
 - `pnpm build` — `tsc -b && vite build`, output to `dist/`.
 - `pnpm lint` — ESLint flat config (`eslint.config.js`): TypeScript,
   React Hooks, and React Refresh rules.

@@ -8,7 +8,7 @@
   },
   "scripts": {
     "build": "turbo run build",
-    "dev": "turbo run dev",
+    "dev": "concurrently -n docker,frontend -c blue,green -k \"docker compose up --build\" \"pnpm --filter frontend dev\"",
     "lint": "turbo run lint",
     "test": "turbo run test",
     "typecheck": "turbo run typecheck",
@@ -16,6 +16,7 @@
     "format:check": "prettier --check \"**/*.{ts,tsx,md,json,yml,yaml}\""
   },
   "devDependencies": {
+    "concurrently": "^10.0.5",
     "prettier": "^3.3.3",
     "turbo": "^2.1.3"
   }

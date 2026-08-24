@@ -21,15 +21,23 @@ documentation/           Code-overview docs — read these before the code
 Requires Docker, pnpm, and Python 3.11+.
 
 ```bash
-# Postgres + Redis + backend API on :8000
-docker compose up -d postgres redis
-cd backend && pip install -e ".[dev]" && alembic upgrade head
-docker compose up backend
-
-# Frontend on :5173, talking to the local backend
 pnpm install
-pnpm --filter frontend dev
+cd backend && pip install -e ".[dev]" && alembic upgrade head && cd ..   # once, before the first run
+
+pnpm dev
 ```
+
+`pnpm dev` brings up every `docker-compose.yml` service (Postgres, Redis,
+LocalStack, backend API on `:8000`, `workers`) via `docker compose up
+--build`, and the frontend's Vite dev server on `:3000`, in one terminal
+with merged/labeled output (`concurrently` — Ctrl+C stops both). The
+`alembic upgrade head` step only needs to run once against a fresh
+Postgres volume, same as running the backend any other way.
+
+To run pieces individually instead (e.g. you don't need the frontend, or
+want backend logs separate from everything else), start services by name:
+`docker compose up -d postgres redis` /
+`docker compose up backend` / `pnpm --filter frontend dev`, etc.
 
 Run tests/lint for everything:
 

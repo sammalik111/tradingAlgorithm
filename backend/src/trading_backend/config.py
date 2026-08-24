@@ -30,7 +30,7 @@ class Settings(BaseSettings):
     anthropic_api_key: str | None = None
     recommendation_model: str = "claude-sonnet-5"
 
-    cors_allowed_origins: str = "http://localhost:5173"
+    cors_allowed_origins: str = "http://localhost:3000"
 
     @property
     def cors_origins(self) -> list[str]:
